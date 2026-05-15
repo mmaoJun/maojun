@@ -18,6 +18,20 @@ const footerInfo = siteFooter
 const heroImage = homeConfig.heroImage
 const burningImage = homeConfig.burningImage
 const cardsImage = homeConfig.cardsImage
+const collectionItems = [
+  '/media-slow/p2181503417.webp',
+  '/media-slow/p2205148825.webp',
+  '/media-slow/p2542529344.webp',
+  '/media-slow/p2561886540.webp',
+  '/media-slow/p2565216182.webp',
+  '/media-slow/p2576658975.webp',
+  '/media-slow/p2674630000.webp',
+  '/media-slow/p2868242100.webp',
+  '/media-slow/p2906091728.webp',
+  '/media-musics/p1218345200.webp',
+  '/burning.webp',
+  '/home/red.webp',
+]
 const [cardBack1, cardBack2, cardBack3] = homeConfig.cardBackImages
 const hitokoto = ref('')
 const heroQuoteChars = computed(() => Array.from(hitokoto.value || ''))
@@ -47,8 +61,73 @@ let navInitialWidth = 0
 let navPinnedWidth = null
 let homeActive = false
 let pendingRestorePath = null
+let pendingHomeNavTransition = null
+let pendingHomeNavTargetY = null
 const scrollPositions = new Map()
 const cleanups = []
+
+const getDefaultNavWidthPx = () => {
+  const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16
+  if (window.innerWidth <= 1000) {
+    return Math.max(window.innerWidth - rootFontSize, 0)
+  }
+  return Math.min(1625, Math.max(window.innerWidth - (2.7 * rootFontSize), 0))
+}
+
+const restoreNavDefaultWidth = () => {
+  if (!navEl) return 0
+  gsap.killTweensOf(navEl)
+  gsap.set(navEl, { clearProps: 'width' })
+  navInitialWidth = navEl.getBoundingClientRect().width || getDefaultNavWidthPx()
+  return navInitialWidth
+}
+
+const getCompactNavWidth = () => (window.innerWidth >= 768 ? '760px' : '72vw')
+
+const applyCompactNavWidth = () => {
+  if (!navEl) return
+  gsap.killTweensOf(navEl)
+  gsap.set(navEl, { width: getCompactNavWidth() })
+}
+
+const shouldHomeNavBeCompactAtScrollY = (scrollY = 0) => {
+  const intro = homeRoot.value?.querySelector('.mwg_effect000')
+  if (!intro) return false
+
+  const triggerRatio = window.innerWidth >= 768 ? 0.52 : 0.58
+  const compactThreshold = intro.offsetTop - (window.innerHeight * triggerRatio)
+  return scrollY > Math.max(compactThreshold, 0)
+}
+
+const syncHomeNavForTargetScroll = (scrollY = 0, animateLong = false) => {
+  if (!navEl) return
+
+  if (shouldHomeNavBeCompactAtScrollY(scrollY)) {
+    applyCompactNavWidth()
+    return
+  }
+
+  const defaultWidth = navInitialWidth || getDefaultNavWidthPx()
+  if (animateLong) {
+    gsap.fromTo(navEl, {
+      width: getCompactNavWidth(),
+    }, {
+      width: defaultWidth,
+      duration: 0.75,
+      ease: 'power1.inOut',
+      overwrite: true,
+      onComplete: () => restoreNavDefaultWidth(),
+    })
+    return
+  }
+
+  restoreNavDefaultWidth()
+}
+
+const getCurrentHomeScrollY = () => {
+  if (lenis && typeof lenis.scroll === 'number') return lenis.scroll
+  return window.scrollY || 0
+}
 
 const getHitokoto = async () => {
   try {
@@ -354,12 +433,16 @@ const handleGoHome = (event) => {
   event.preventDefault()
   if (route.path !== '/') {
     scrollPositions.set(route.path, window.scrollY || 0)
+    pendingRestorePath = '/'
+    pendingHomeNavTransition = 'pending'
+    pendingHomeNavTargetY = scrollPositions.get('/') ?? 0
+    applyCompactNavWidth()
     router.push('/')
     return
   }
   if (!navEl) return
   gsap.to(navEl, {
-    width: navInitialWidth || navEl.getBoundingClientRect().width,
+    width: restoreNavDefaultWidth() || navEl.getBoundingClientRect().width,
     duration: 1.25,
     ease: 'power1.inOut',
     overwrite: true,
@@ -383,9 +466,12 @@ const restoreScrollPosition = (path) => {
   }
 }
 
-const restoreHomeScrollPosition = () => {
+const restoreHomeScrollPosition = (onComplete) => {
   const savedY = scrollPositions.get('/')
-  if (typeof savedY !== 'number') return
+  if (typeof savedY !== 'number') {
+    if (typeof onComplete === 'function') onComplete()
+    return
+  }
 
   requestAnimationFrame(() => {
     ScrollTrigger.refresh()
@@ -401,6 +487,7 @@ const restoreHomeScrollPosition = () => {
         lenis.scrollTo(savedY, { immediate: true })
         ScrollTrigger.update()
       }
+      if (typeof onComplete === 'function') onComplete(savedY)
     })
   })
 }
@@ -409,8 +496,12 @@ const navigateWithNavTransition = (path) => {
   if (route.path === path) return
   scrollPositions.set(route.path, window.scrollY || 0)
   if (navEl) {
-    navPinnedWidth = navEl.getBoundingClientRect().width
-    gsap.set(navEl, { width: navPinnedWidth })
+    if (route.path === '/') {
+      applyCompactNavWidth()
+    } else {
+      gsap.killTweensOf(navEl)
+      gsap.set(navEl, { width: getCompactNavWidth() })
+    }
   }
   router.push(path)
 }
@@ -456,60 +547,83 @@ const scrollToBottom = () => {
 
 const initHeroScroll = () => {
   const nav = document.querySelector('.hero-nav')
+  const hero = homeRoot.value?.querySelector('.hero')
+  const intro = homeRoot.value?.querySelector('.mwg_effect000')
   const frame = homeRoot.value?.querySelector('.hero-frame')
   const heroImg = homeRoot.value?.querySelector('.hero-media img')
   const heroCopy = homeRoot.value?.querySelector('.hero-copy')
-  if (!nav || !frame || !heroImg || !heroCopy) return
+  if (!nav || !hero || !intro || !frame || !heroImg || !heroCopy) return
 
   const mm = gsap.matchMedia()
 
-  mm.add('(min-width: 768px)', () => {
-    const initialNavWidth = nav.getBoundingClientRect().width
-    const tl = gsap.timeline({
-      scrollTrigger: { trigger: homeRoot.value?.querySelector('.hero'), start: 'top top', end: 'bottom top', scrub: 1.1 },
+  const setupNavWidthTrigger = ({ breakpoint, start, compactWidth, scrub }) => {
+    mm.add(breakpoint, () => {
+      const initialNavWidth = navInitialWidth || getDefaultNavWidthPx()
+      const tl = gsap.timeline({
+        scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub },
+      })
+
+      tl.to(frame, { scale: window.innerWidth >= 768 ? 0.74 : 0.82, '--hero-dark': window.innerWidth >= 768 ? 0.36 : 0.28, ease: 'none' }, 0)
+        .to(heroImg, { scale: 1, ease: 'none' }, 0)
+
+      if (window.innerWidth >= 768) {
+        tl.to(heroCopy, { y: -28, opacity: 0.15, ease: 'none' }, 0)
+      }
+
+      const setNavWidthState = (isCompact, animate = true) => {
+        const targetWidth = isCompact ? compactWidth : initialNavWidth
+        const method = animate ? gsap.to : gsap.set
+        method(nav, {
+          width: targetWidth,
+          duration: animate ? (isCompact ? 0.82 : 0.75) : 0,
+          ease: animate ? 'power1.inOut' : 'none',
+          overwrite: true,
+        })
+      }
+
+      const syncNavWidthState = (animate = false) => {
+        if (pendingRestorePath === '/') {
+          setNavWidthState(true, false)
+          return
+        }
+
+        const introTop = intro.getBoundingClientRect().top
+        const startRatio = Number.parseFloat(start.split(' ')[1]) / 100
+        const triggerLine = window.innerHeight * startRatio
+        setNavWidthState(introTop <= triggerLine, animate)
+      }
+
+      const navTrigger = ScrollTrigger.create({
+        trigger: intro,
+        start,
+        end: start,
+        onEnter: () => setNavWidthState(true, true),
+        onLeaveBack: () => setNavWidthState(false, true),
+        onRefresh: () => syncNavWidthState(false),
+      })
+
+      requestAnimationFrame(() => syncNavWidthState(false))
+
+      return () => {
+        tl.scrollTrigger?.kill()
+        tl.kill()
+        navTrigger.kill()
+      }
     })
+  }
 
-    tl.to(frame, { scale: 0.74, '--hero-dark': 0.36, ease: 'none' }, 0)
-      .to(heroImg, { scale: 1, ease: 'none' }, 0)
-      .to(heroCopy, { y: -28, opacity: 0.15, ease: 'none' }, 0)
-
-    const navTrigger = ScrollTrigger.create({
-      trigger: homeRoot.value?.querySelector('.intro'),
-      start: 'top 52%',
-      end: 'top 52%',
-      onEnter: () => gsap.to(nav, { width: '760px', duration: 0.82, ease: 'power1.inOut', overwrite: true }),
-      onLeaveBack: () => gsap.to(nav, { width: initialNavWidth, duration: 0.75, ease: 'power1.inOut', overwrite: true }),
-    })
-
-    return () => {
-      tl.scrollTrigger?.kill()
-      tl.kill()
-      navTrigger.kill()
-    }
+  setupNavWidthTrigger({
+    breakpoint: '(min-width: 768px)',
+    start: 'top 52%',
+    compactWidth: '760px',
+    scrub: 1.1,
   })
 
-  mm.add('(max-width: 767px)', () => {
-    const initialNavWidth = nav.getBoundingClientRect().width
-    const tl = gsap.timeline({
-      scrollTrigger: { trigger: homeRoot.value?.querySelector('.hero'), start: 'top top', end: 'bottom top', scrub: 1 },
-    })
-
-    tl.to(frame, { scale: 0.82, '--hero-dark': 0.28, ease: 'none' }, 0)
-      .to(heroImg, { scale: 1, ease: 'none' }, 0)
-
-    const navTrigger = ScrollTrigger.create({
-      trigger: homeRoot.value?.querySelector('.intro'),
-      start: 'top 58%',
-      end: 'top 58%',
-      onEnter: () => gsap.to(nav, { width: '72vw', duration: 0.78, ease: 'power1.inOut', overwrite: true }),
-      onLeaveBack: () => gsap.to(nav, { width: initialNavWidth, duration: 0.7, ease: 'power1.inOut', overwrite: true }),
-    })
-
-    return () => {
-      tl.scrollTrigger?.kill()
-      tl.kill()
-      navTrigger.kill()
-    }
+  setupNavWidthTrigger({
+    breakpoint: '(max-width: 767px)',
+    start: 'top 58%',
+    compactWidth: '72vw',
+    scrub: 1,
   })
 
   cleanups.push(() => mm.revert())
@@ -641,6 +755,62 @@ const initCardScroll = () => {
   cleanups.push(() => mm.revert())
 }
 
+const initCollectionHover = () => {
+  const root = homeRoot.value?.querySelector('.mwg_effect000')
+  if (!root) return
+
+  let oldX = 0
+  let oldY = 0
+  let deltaX = 0
+  let deltaY = 0
+
+  const handleMouseMove = (event) => {
+    deltaX = event.clientX - oldX
+    deltaY = event.clientY - oldY
+    oldX = event.clientX
+    oldY = event.clientY
+  }
+
+  root.addEventListener('mousemove', handleMouseMove)
+
+  const mediaItems = Array.from(root.querySelectorAll('.media'))
+  const mediaCleanups = mediaItems.map((el) => {
+    const handleEnter = () => {
+      const image = el.querySelector('img')
+      if (!image) return
+
+      gsap.killTweensOf(image)
+      gsap.set(image, { x: 0, y: 0, rotate: 0 })
+
+      const randomRotate = (Math.random() - 0.5) * 12
+      const offsetX = gsap.utils.clamp(-72, 72, deltaX * 10)
+      const offsetY = gsap.utils.clamp(-72, 72, deltaY * 10)
+
+      gsap.timeline()
+        .fromTo(image, {
+          x: offsetX,
+          y: offsetY,
+          rotate: randomRotate,
+        }, {
+          x: 0,
+          y: 0,
+          rotate: 0,
+          duration: 1.1,
+          ease: 'expo.out',
+          clearProps: 'x,y,rotate',
+        })
+    }
+
+    el.addEventListener('mouseenter', handleEnter)
+    return () => el.removeEventListener('mouseenter', handleEnter)
+  })
+
+  cleanups.push(() => {
+    root.removeEventListener('mousemove', handleMouseMove)
+    mediaCleanups.forEach((fn) => fn())
+  })
+}
+
 const activateHome = async () => {
   if (homeActive || !loaderDone.value) return
   await nextTick()
@@ -650,14 +820,27 @@ const activateHome = async () => {
   getHitokoto2()
   initSmoothScroll()
   navEl = document.querySelector('.hero-nav')
-  navInitialWidth = navEl?.getBoundingClientRect().width || 0
+  navInitialWidth = getDefaultNavWidthPx()
+  applyCompactNavWidth()
+
   initHeroScroll()
   initCardScroll()
+  initCollectionHover()
   homeActive = true
+
   if (pendingRestorePath === '/') {
-    restoreHomeScrollPosition()
-    pendingRestorePath = null
+    const targetY = pendingHomeNavTargetY ?? scrollPositions.get('/') ?? 0
+    restoreHomeScrollPosition((restoredY = targetY) => {
+      const shouldCompact = shouldHomeNavBeCompactAtScrollY(restoredY)
+      syncHomeNavForTargetScroll(restoredY, !shouldCompact)
+      pendingRestorePath = null
+      pendingHomeNavTransition = null
+      pendingHomeNavTargetY = null
+    })
+    return
   }
+
+  syncHomeNavForTargetScroll(getCurrentHomeScrollY(), false)
 }
 
 const deactivateHome = () => {
@@ -673,7 +856,12 @@ const deactivateHome = () => {
 onMounted(async () => {
   gsap.registerPlugin(ScrollTrigger)
   navEl = document.querySelector('.hero-nav')
-  navInitialWidth = navEl?.getBoundingClientRect().width || 0
+  navInitialWidth = getDefaultNavWidthPx()
+  if (isHomePage.value) {
+    syncHomeNavForTargetScroll(window.scrollY || 0, false)
+  } else {
+    applyCompactNavWidth()
+  }
 
   const loaderPlayed = sessionStorage.getItem('site-loader-played') === '1'
   if (!loaderPlayed) {
@@ -698,23 +886,26 @@ watch(() => hitokoto.value, () => {
 
 watch(() => route.path, (newPath, oldPath) => {
   if (!navEl) return
-  if (oldPath) scrollPositions.set(oldPath, window.scrollY || 0)
+  if (oldPath) {
+    const currentY = oldPath === '/' ? getCurrentHomeScrollY() : (window.scrollY || 0)
+    scrollPositions.set(oldPath, currentY)
+  }
 
   if (newPath === '/' && oldPath !== '/') {
     navPinnedWidth = null
     pendingRestorePath = '/'
-    gsap.to(navEl, {
-      width: navInitialWidth,
-      duration: 0.45,
-      ease: 'power1.out',
-      overwrite: true,
-    })
+    pendingHomeNavTransition = 'pending'
+    pendingHomeNavTargetY = scrollPositions.get('/') ?? 0
+    applyCompactNavWidth()
     return
   }
-  if (newPath !== '/' && oldPath === '/') {
-    const lockedWidth = navPinnedWidth || navEl.getBoundingClientRect().width
-    gsap.set(navEl, { width: lockedWidth })
+
+  if (newPath !== '/') {
+    pendingHomeNavTransition = null
+    pendingHomeNavTargetY = null
+    applyCompactNavWidth()
   }
+
   pendingRestorePath = null
   requestAnimationFrame(() => restoreScrollPosition(newPath))
 })
@@ -725,6 +916,7 @@ watch(isHomePage, async (isHome) => {
     animateHeroCopyChars()
   } else {
     deactivateHome()
+    applyCompactNavWidth()
   }
 })
 
@@ -791,18 +983,12 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <section class="intro">
-    <img class="intro-poster" :src="burningImage" alt="Burning" />
-    <p class="intro-text">
-      <template v-for="(line, idx) in homeConfig.introLines" :key="`intro-line-${idx}`">
-        {{ line }}<br v-if="idx < homeConfig.introLines.length - 1" />
-      </template>
-    </p>
-    <p class="intro-sub">
-      <template v-for="(line, idx) in homeConfig.introSubLines" :key="`intro-sub-${idx}`">
-        {{ line }}<br v-if="idx < homeConfig.introSubLines.length - 1" />
-      </template>
-    </p>
+  <section class="mwg_effect000">
+    <div class="medias">
+      <div v-for="(src, idx) in collectionItems" :key="`collection-${idx}`" class="media">
+        <img :src="src" :alt="`collection item ${idx + 1}`" />
+      </div>
+    </div>
   </section>
 
   <section class="sticky">
@@ -896,16 +1082,17 @@ p{font-size:2rem;font-weight:500;line-height:1}
 @keyframes filmGrainMove{0%{transform:translate3d(0,0,0)}15%{transform:translate3d(-1.2%,-.8%,0)}30%{transform:translate3d(.9%,.7%,0)}45%{transform:translate3d(-.8%,1.1%,0)}60%{transform:translate3d(1.1%,-.6%,0)}75%{transform:translate3d(-.7%,-1%,0)}90%{transform:translate3d(.8%,.6%,0)}100%{transform:translate3d(0,0,0)}}
 @keyframes filmGrainFlicker{0%{opacity:.12}50%{opacity:.18}100%{opacity:.16}}
 
-.intro,.outro{min-height:100svh;text-align:center;align-content:center;z-index:4;background-color:#000;background-image:radial-gradient(circle at 1px 1px,rgb(255 255 255 / 8%) 1px,transparent 0);background-size:18px 18px}
+.outro,.mwg_effect000{min-height:100svh;text-align:center;align-content:center;z-index:4;background-color:#000;background-image:radial-gradient(circle at 1px 1px,rgb(255 255 255 / 8%) 1px,transparent 0);background-size:18px 18px}
 .site-footer{padding:1.4rem 2rem 2.2rem;text-align:center;font-size:.82rem;letter-spacing:.04em;color:rgb(255 255 255 / 48%);background:#000;display:flex;justify-content:center;align-items:center;gap:0.8rem;flex-wrap:wrap}
 .site-footer a{color:inherit;text-decoration:none;transition:color .2s ease}
 .site-footer a:hover{color:rgb(255 255 255 / 85%)}
 .footer-separator{opacity:0.3}
-.intro{min-height:100svh;margin-top:-100svh;padding:2rem 2rem 4.2rem;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
-.intro h1,.outro h1{width:min(900px,92%);margin:0 auto;color:rgb(255 255 255 / 90%)}
-.intro-poster{width:min(560px,88vw);height:auto;display:block;margin:0 auto 1.6rem;border-radius:10px;opacity:.95}
-.intro-text{width:min(980px,94%);margin:0 auto;font-family:'Cormorant Garamond',serif;font-size:clamp(1.28rem,2.25vw,2rem);line-height:1.2;color:rgb(255 255 255 / 88%)}
-.intro-sub{margin-top:1.9rem;font-family:'Manrope',sans-serif;font-size:clamp(.82rem,1.1vw,.96rem);line-height:1.45;letter-spacing:.04em;color:rgb(255 255 255 / 70%)}
+.outro h1{width:min(900px,92%);margin:0 auto;color:rgb(255 255 255 / 90%)}
+
+.mwg_effect000{min-height:100svh;margin-top:-100svh;height:100svh;overflow:hidden;position:relative;display:grid;place-items:center;padding:0 2rem}
+.mwg_effect000 .medias{display:grid;grid-template-columns:repeat(4,1fr);gap:1vw}
+.mwg_effect000 .media{display:grid;place-items:center}
+.mwg_effect000 .medias img{width:11vw;height:11vw;object-fit:cover;border-radius:4%;display:block;pointer-events:none;will-change:transform;box-shadow:0 14px 32px rgb(0 0 0 / 18%)}
 
 .sticky{min-height:100svh;display:flex;justify-content:center;align-items:center}
 .sticky-header{position:absolute;top:20%;left:50%;transform:translate(-50%,-50%)}
@@ -942,11 +1129,10 @@ p{font-size:2rem;font-weight:500;line-height:1}
 .hero-copy h1{font-size:clamp(1.8rem,8.2vw,2.6rem)}
 .hero-copy p{font-size:clamp(.92rem,3.6vw,1.15rem)}
 .hero-tip{bottom:1.55rem}
-.intro{margin-top:-100svh;padding:1.2rem 1.2rem 2.6rem;justify-content:flex-end}
-.intro-poster{width:min(420px,88vw);margin-bottom:1rem}
-.intro-text{font-size:clamp(1.1rem,4.6vw,1.62rem)}
-.intro-sub{font-size:clamp(.76rem,2.8vw,.9rem);margin-top:1.5rem}
-.intro h1,.outro h1{width:100%}
+.mwg_effect000{margin-top:-100svh;padding:0 1rem}
+.mwg_effect000 .medias{gap:2vw}
+.mwg_effect000 .medias img{width:18vw;height:18vw}
+.outro h1{width:100%}
 .sticky{min-height:100svh;padding:0;display:flex;align-items:center;justify-content:center}
 .sticky-header{position:absolute;top:20%;left:50%;transform:translate(-50%,-50%);z-index:4}
 .sticky-header h1{opacity:0;transform:translateY(40px);will-change:transform,opacity}
