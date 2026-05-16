@@ -6,6 +6,9 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from '@studio-freight/lenis'
 import { aboutPageConfig, homePageConfig, siteFooter, siteNavLinks } from './config/siteContent'
+import GlassFilter from './components/ui/GlassFilter.vue'
+import LiquidGlassNav from './components/ui/LiquidGlassNav.vue'
+import LiquidGlassButton from './components/ui/LiquidGlassButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -959,13 +962,14 @@ onBeforeUnmount(() => {
     </div>
   </div>
 
-  <header v-show="!showLoader" class="hero-nav">
+  <GlassFilter />
+  <LiquidGlassNav v-show="!showLoader">
     <a class="hero-logo" href="/" @click="handleGoHome">{{ homeConfig.brand }}</a>
     <nav class="hero-links">
       <a v-for="link in navLinks" :key="link.href" :href="link.href" @click.prevent="navigateWithNavTransition(link.href)">{{ link.label }}</a>
     </nav>
-    <button class="hero-cta" @click="navigateWithNavTransition('/about')">{{ homeConfig.aboutLabel }}</button>
-  </header>
+    <LiquidGlassButton class="hero-cta" @click="navigateWithNavTransition('/about')">{{ homeConfig.aboutLabel }}</LiquidGlassButton>
+  </LiquidGlassNav>
 
   <main v-if="isHomePage" ref="homeRoot">
     <section class="hero">
@@ -1056,16 +1060,11 @@ section{position:relative;width:100%;padding:2rem;background:var(--bg);color:var
 h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2.25rem,5vw,4.2rem);font-weight:500;line-height:1}
 p{font-size:2rem;font-weight:500;line-height:1}
 
-.hero-nav{position:fixed;left:50%;top:clamp(.9rem,4.8vh,2.8rem);transform:translateX(-50%);width:min(1625px,calc(100% - 2.7rem));min-height:3.5rem;border:1px solid rgb(255 255 255 / 10%);border-radius:16px;background-color:rgb(28 32 40 / 58%);background-image:linear-gradient(180deg,rgb(255 255 255 / 10%),rgb(255 255 255 / 3%));backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);box-shadow:0 10px 30px rgb(0 0 0 / 22%),inset 0 1px 0 rgb(255 255 255 / 10%),inset 0 -1px 0 rgb(255 255 255 / 3%);display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.45rem .6rem .45rem 1rem;z-index:9999;will-change:transform,width}
-@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))){
-.hero-nav{background-color:rgb(32 36 44 / 86%);background-image:linear-gradient(180deg,rgb(255 255 255 / 8%),rgb(255 255 255 / 2%));box-shadow:0 12px 32px rgb(0 0 0 / 26%),inset 0 1px 0 rgb(255 255 255 / 8%)}
-}
-.hero-logo{font-family:'STXingkai',sans-serif;font-size:2.3rem;font-weight:700;letter-spacing:.01em;color:rgb(255 255 255 / 92%);text-decoration:none}
+.hero-logo{font-family:'STXingkai',sans-serif;font-size:2.3rem;font-weight:700;letter-spacing:.01em;color:rgb(15 23 42 / 92%);text-decoration:none;text-shadow:0 1px 0 rgb(255 255 255 / 60%)}
 .hero-links{display:flex;gap:1.4rem}
-.hero-links a,.hero-links :deep(a){display:inline-flex;align-items:center;justify-content:center;color:rgb(255 255 255 / 84%);text-decoration:none;font-size:.9rem;transition:opacity .25s ease,transform .25s ease}
-.hero-links a:hover,.hero-links :deep(a:hover){opacity:.65;transform:translateY(-1px)}
-.hero-cta{border:0;border-radius:12px;background:#d7d7d7;color:#111;font-weight:700;font-size:.84rem;padding:.68rem 1.3rem;cursor:pointer;transition:background-color .22s ease}
-.hero-cta:hover{background:#ececec}
+.hero-links a,.hero-links :deep(a){display:inline-flex;align-items:center;justify-content:center;color:rgb(30 41 59 / 90%);text-decoration:none;font-size:.9rem;font-weight:600;transition:color .25s ease,transform .3s ease;text-shadow:0 1px 0 rgb(255 255 255 / 50%)}
+.hero-links a:hover,.hero-links :deep(a:hover){color:rgb(15 23 42);transform:scale(1.05)}
+:deep(.hero-cta){flex:0 0 auto}
 
 .hero{height:200svh;padding:0;z-index:1}
 .hero-inner{position:sticky;top:0;height:100svh;display:flex;align-items:center;justify-content:center}
@@ -1116,12 +1115,11 @@ p{font-size:2rem;font-weight:500;line-height:1}
 .loader-side{display:none}
 .loader-grid{width:min(82vw,420px);gap:.5rem}
 .loader-logo h1{font-size:clamp(1.15rem,6.2vw,1.8rem)}
-.hero-nav{width:calc(100% - 1rem);padding:.45rem .5rem;min-height:3.35rem;gap:.45rem}
 .hero-logo{font-size:1.18rem;flex:0 0 auto}
 .hero-links{display:flex;flex:1 1 auto;justify-content:center;gap:.6rem;min-width:0}
 .hero-links a,.hero-links :deep(a){width:auto;height:auto;padding:0;border-radius:0;display:inline-flex;place-items:unset;background:transparent;border:none;font-size:.68rem;letter-spacing:.01em;white-space:nowrap}
 .hero-links a:hover,.hero-links :deep(a:hover){opacity:.72;transform:none;background:transparent}
-.hero-cta{flex:0 0 auto;font-size:.64rem;padding:.5rem .7rem;border-radius:10px}
+:deep(.hero-cta){font-size:.64rem;padding:.5rem .7rem;border-radius:10px}
 .hero-frame{width:100vw;height:100svh;border-radius:0;box-shadow:none;background:#000}
 .hero-media{display:flex;align-items:center;justify-content:center;background:#000}
 .hero-media img{width:100%;height:100%;object-fit:contain;object-position:center center;transform:scale(1)}
