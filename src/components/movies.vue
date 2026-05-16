@@ -1,449 +1,625 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import Lenis from 'lenis'
-import { moviesPageConfig } from '../config/siteContent'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
-gsap.registerPlugin(ScrollTrigger)
+const sliderData = [
+  { title: '千と千尋', year: '2019', img: '/media-slow/p2181503417.webp', url: 'https://movie.douban.com/subject/1291561/' },
+  { title: '教父', year: '1972', img: '/media-slow/p2205148825.webp', url: 'https://movie.douban.com/subject/1291841/' },
+  { title: '燃烧 버닝', year: '2018', img: '/media-slow/p2542529344.webp', url: 'https://movie.douban.com/subject/26842702/' },
+  { title: '新世界', year: '2013', img: '/media-slow/p2561886540.webp', url: 'https://movie.douban.com/subject/10437779/' },
+  { title: '寄生虫', year: '2019', img: '/media-slow/p2565216182.webp', url: 'https://movie.douban.com/subject/27010768/' },
+  { title: '杀人回忆', year: '2003', img: '/media-slow/p2576658975.webp', url: 'https://movie.douban.com/subject/1300299/' },
+  { title: '花束般的恋爱', year: '2022', img: '/media-slow/p2674630000.webp', url: 'https://movie.douban.com/subject/34874432/' },
+  { title: '余生那些年', year: '2023', img: '/media-slow/p2868242100.webp', url: 'https://movie.douban.com/subject/35418583/' },
+  { title: '君の名は。', year: '2016', img: '/media-slow/p2906091728.webp', url: 'https://movie.douban.com/subject/26683290/' },
+]
 
-const pageRoot = ref(null)
-const bgCanvas = ref(null)
-const isMobileView = window.matchMedia('(max-width: 1000px)').matches
-const pageConfig = moviesPageConfig
-const randomCardPalette = ['#ff2d55', '#ff6a00', '#ffd60a', '#00c853', '#00b8ff', '#3a86ff', '#7b2cff', '#ff006e', '#06d6a0', '#ff3b30']
-const randomizedCardColors = pageConfig.movies.map((_, idx) => randomCardPalette[(idx * 7 + 3) % randomCardPalette.length])
+const rootRef = ref(null)
+const trackRef = ref(null)
 
-const movieCards = computed(() =>
-  pageConfig.movies.map((item, idx) => ({
-    src: `/media-movies/${item.file}`,
-    title: item.title,
-    meta: item.meta,
-    quote: item.quote,
-    bg: randomizedCardColors[idx],
-    titleColor: pageConfig.glassTheme.titleColor,
-    metaColor: pageConfig.glassTheme.metaColor,
-    glow: pageConfig.glassTheme.glow,
-  })),
-)
+/** 仅精细指针设备显示自定义圆球（不替代系统光标）；pointer 为光标，ring 为滞后追赶 */
+const cursorRingEnabled = ref(false)
+const showCursorRing = ref(false)
+const ringOverSlide = ref(false)
+const pointerX = ref(0)
+const pointerY = ref(0)
+const ringX = ref(0)
+const ringY = ref(0)
+let cursorRingNeedsSnap = true
 
-let lenis = null
-let tickerFn = null
-let cardsTrigger = null
-let bgCtx = null
-let bgAnimationId = 0
-let particleCleanup = null
-const circleArr = []
+const RING_FOLLOW = {
+  /** 距离越远系数越大，便于追上快速移动 */
+  K_MIN: 0.1,
+  K_MAX: 0.42,
+  DIST_SCALE: 0.0024,
+  SNAP_EPS2: 0.25,
+}
 
-class Circle {
-  constructor(x, y, r) {
-    this.x = x
-    this.y = y
-    this.r = r
-    this.color = `rgb(${Math.floor(Math.random() * 80) + 175}, ${Math.floor(Math.random() * 120) + 80}, ${Math.floor(Math.random() * 90) + 20})`
-    this.dx = Math.random() * 3.2 - 1.6
-    this.dy = Math.random() * 3.2 - 1.6
-    circleArr.push(this)
+const config = {
+  SCROLL_SPEED: 1.75,
+  LERP_FACTOR: 0.05,
+  MAX_VELOCITY: 150,
+  ENTRANCE_DURATION: 1200,
+}
+
+const totalSlideCount = sliderData.length
+
+const state = {
+  currentX: 0,
+  targetX: 0,
+  slideWidth: 390,
+  slides: [],
+  isDragging: false,
+  startX: 0,
+  lastX: 0,
+  lastMouseX: 0,
+  lastScrollTime: Date.now(),
+  isMoving: false,
+  velocity: 0,
+  lastCurrentX: 0,
+  dragDistance: 0,
+  hasActuallyDragged: false,
+  isMobile: false,
+  entranceProgress: 0,
+  entranceStartAt: 0,
+}
+
+let rafId = 0
+const cleanups = []
+
+function checkMobile() {
+  state.isMobile = window.innerWidth < 1000
+}
+
+function createSlideElement(index) {
+  const slide = document.createElement('div')
+  slide.className = 'slide'
+
+  if (state.isMobile) {
+    slide.style.width = '210px'
+    slide.style.height = '300px'
   }
 
-  render() {
-    if (!bgCtx) return
-    bgCtx.beginPath()
-    bgCtx.arc(this.x, this.y, this.r, 0, Math.PI * 2, true)
-    bgCtx.fillStyle = this.color
-    bgCtx.fill()
-  }
+  const imageContainer = document.createElement('div')
+  imageContainer.className = 'slide-image'
 
-  update() {
-    this.x += this.dx
-    this.y += this.dy
-    this.r -= 0.14
+  const img = document.createElement('img')
+  const slideDataIndex = index % totalSlideCount
+  img.src = sliderData[slideDataIndex].img
+  img.alt = sliderData[slideDataIndex].title
 
-    if (this.r < 0) {
-      const index = circleArr.indexOf(this)
-      if (index >= 0) circleArr.splice(index, 1)
-      return false
+  const overlay = document.createElement('div')
+  overlay.className = 'slide-overlay'
+
+  const year = document.createElement('p')
+  year.className = 'project-year'
+  year.textContent = sliderData[slideDataIndex].year
+
+  const centerTitle = document.createElement('p')
+  centerTitle.className = 'project-title-center'
+  centerTitle.textContent = sliderData[slideDataIndex].title
+
+  const title = document.createElement('p')
+  title.className = 'project-title'
+  title.textContent = sliderData[slideDataIndex].title
+
+  slide.addEventListener('click', (event) => {
+    event.preventDefault()
+    if (state.dragDistance < 10 && !state.hasActuallyDragged) {
+      window.location.href = sliderData[slideDataIndex].url
     }
+  })
 
-    return true
+  overlay.appendChild(title)
+  slide.appendChild(year)
+  slide.appendChild(centerTitle)
+  imageContainer.appendChild(img)
+  slide.appendChild(imageContainer)
+  slide.appendChild(overlay)
+
+  return slide
+}
+
+function initializeSlides() {
+  const track = trackRef.value
+  if (!track) return
+
+  track.innerHTML = ''
+  state.slides = []
+
+  checkMobile()
+
+  const copies = 6
+  const totalSlides = totalSlideCount * copies
+
+  for (let i = 0; i < totalSlides; i += 1) {
+    const slide = createSlideElement(i)
+    track.appendChild(slide)
+    state.slides.push(slide)
+  }
+
+  const firstSlide = state.slides[0]
+  if (firstSlide) {
+    const computedStyle = window.getComputedStyle(firstSlide)
+    const marginLeft = Number.parseFloat(computedStyle.marginLeft) || 0
+    const marginRight = Number.parseFloat(computedStyle.marginRight) || 0
+    state.slideWidth = firstSlide.offsetWidth + marginLeft + marginRight
+  }
+
+  const startOffset = -(totalSlideCount * state.slideWidth * 2)
+  state.currentX = startOffset
+  state.targetX = startOffset
+}
+
+function updateSlidePositions() {
+  const track = trackRef.value
+  if (!track) return
+
+  const sequenceWidth = state.slideWidth * totalSlideCount
+
+  if (state.currentX > -sequenceWidth * 1) {
+    state.currentX -= sequenceWidth
+    state.targetX -= sequenceWidth
+  } else if (state.currentX < -sequenceWidth * 4) {
+    state.currentX += sequenceWidth
+    state.targetX += sequenceWidth
+  }
+
+  track.style.transform = `translate3d(${state.currentX}px, 0, 0)`
+}
+
+function updateParallax() {
+  const viewportCenter = window.innerWidth / 2
+  const easedEntrance = 1 - (1 - state.entranceProgress) ** 3
+  const imageScale = 7 - (4.82 * easedEntrance)
+
+  state.slides.forEach((slide) => {
+    const img = slide.querySelector('img')
+    if (!img) return
+
+    const slideRect = slide.getBoundingClientRect()
+    if (slideRect.right < -500 || slideRect.left > window.innerWidth + 500) return
+
+    const slideCenter = slideRect.left + slideRect.width / 2
+    const distanceFromCenter = slideCenter - viewportCenter
+    const parallaxOffset = distanceFromCenter * -0.25
+
+    img.style.transform = `translateX(${parallaxOffset}px) scale(${imageScale})`
+  })
+}
+
+function updateMovingState() {
+  state.velocity = Math.abs(state.currentX - state.lastCurrentX)
+  state.lastCurrentX = state.currentX
+
+  const isSlowEnough = state.velocity < 0.1
+  const hasBeenStillLongEnough = Date.now() - state.lastScrollTime > 200
+  state.isMoving = state.hasActuallyDragged || !isSlowEnough || !hasBeenStillLongEnough
+
+  document.documentElement.style.setProperty('--slider-moving', state.isMoving ? '1' : '0')
+}
+
+function updateEntranceAnimation() {
+  if (state.entranceProgress >= 1) return
+
+  const elapsed = performance.now() - state.entranceStartAt
+  const rawProgress = Math.min(elapsed / config.ENTRANCE_DURATION, 1)
+  state.entranceProgress = rawProgress
+
+  const easedProgress = 1 - (1 - rawProgress) ** 3
+  const topInset = 90 - (90 * easedProgress)
+
+  document.documentElement.style.setProperty('--movies-card-entrance-top-inset', `${topInset.toFixed(2)}%`)
+}
+
+function animate() {
+  state.currentX += (state.targetX - state.currentX) * config.LERP_FACTOR
+  updateEntranceAnimation()
+  updateMovingState()
+  updateSlidePositions()
+  updateParallax()
+  stepCursorRingFollow()
+  rafId = requestAnimationFrame(animate)
+}
+
+function handleTouchStart(event) {
+  state.isDragging = true
+  state.startX = event.touches[0].clientX
+  state.lastX = state.targetX
+  state.dragDistance = 0
+  state.hasActuallyDragged = false
+  state.lastScrollTime = Date.now()
+}
+
+function handleTouchMove(event) {
+  if (!state.isDragging) return
+
+  const deltaX = (event.touches[0].clientX - state.startX) * 1.5
+  state.targetX = state.lastX + deltaX
+  state.dragDistance = Math.abs(deltaX)
+
+  if (state.dragDistance > 5) {
+    state.hasActuallyDragged = true
+  }
+
+  state.lastScrollTime = Date.now()
+}
+
+function handleTouchEnd() {
+  state.isDragging = false
+  window.setTimeout(() => {
+    state.hasActuallyDragged = false
+  }, 100)
+}
+
+function handleMouseDown(event) {
+  event.preventDefault()
+  state.isDragging = true
+  state.startX = event.clientX
+  state.lastMouseX = event.clientX
+  state.lastX = state.targetX
+  state.dragDistance = 0
+  state.hasActuallyDragged = false
+  state.lastScrollTime = Date.now()
+}
+
+function handleMouseMove(event) {
+  if (!state.isDragging) return
+
+  event.preventDefault()
+  const deltaX = (event.clientX - state.lastMouseX) * 2
+  state.targetX += deltaX
+  state.lastMouseX = event.clientX
+  state.dragDistance += Math.abs(deltaX)
+
+  if (state.dragDistance > 5) {
+    state.hasActuallyDragged = true
+  }
+
+  state.lastScrollTime = Date.now()
+}
+
+function handleMouseUp() {
+  state.isDragging = false
+  window.setTimeout(() => {
+    state.hasActuallyDragged = false
+  }, 100)
+}
+
+function handleResize() {
+  initializeSlides()
+}
+
+function initializeEventListeners() {
+  const slider = rootRef.value?.querySelector('.slider')
+  if (!slider) return
+
+  slider.addEventListener('touchstart', handleTouchStart)
+  slider.addEventListener('touchmove', handleTouchMove)
+  slider.addEventListener('touchend', handleTouchEnd)
+  slider.addEventListener('mousedown', handleMouseDown)
+  slider.addEventListener('mouseleave', handleMouseUp)
+  slider.addEventListener('dragstart', (event) => event.preventDefault())
+
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
+  window.addEventListener('resize', handleResize)
+
+  cleanups.push(() => {
+    slider.removeEventListener('touchstart', handleTouchStart)
+    slider.removeEventListener('touchmove', handleTouchMove)
+    slider.removeEventListener('touchend', handleTouchEnd)
+    slider.removeEventListener('mousedown', handleMouseDown)
+    slider.removeEventListener('mouseleave', handleMouseUp)
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+    window.removeEventListener('resize', handleResize)
+  })
+}
+
+function initializeSlider() {
+  initializeSlides()
+  initializeEventListeners()
+  state.entranceProgress = 0
+  state.entranceStartAt = performance.now()
+  document.documentElement.style.setProperty('--movies-card-entrance-top-inset', '90%')
+  animate()
+}
+
+function stepCursorRingFollow() {
+  if (!cursorRingEnabled.value || !showCursorRing.value) return
+  const tx = pointerX.value
+  const ty = pointerY.value
+  const dx = tx - ringX.value
+  const dy = ty - ringY.value
+  const distSq = dx * dx + dy * dy
+  if (distSq < RING_FOLLOW.SNAP_EPS2) {
+    ringX.value = tx
+    ringY.value = ty
+    return
+  }
+  const dist = Math.sqrt(distSq)
+  const k = Math.min(
+    RING_FOLLOW.K_MAX,
+    RING_FOLLOW.K_MIN + dist * RING_FOLLOW.DIST_SCALE,
+  )
+  ringX.value += dx * k
+  ringY.value += dy * k
+}
+
+function onWindowMouseMoveForRing(event) {
+  pointerX.value = event.clientX
+  pointerY.value = event.clientY
+  if (cursorRingNeedsSnap) {
+    ringX.value = event.clientX
+    ringY.value = event.clientY
+    cursorRingNeedsSnap = false
+  }
+  const el = event.target
+  if (el && typeof el.closest === 'function') {
+    const isOverSlide = Boolean(el.closest('.slide') && rootRef.value?.contains(el.closest('.slide')))
+    const isOverNav = Boolean(el.closest('.hero-nav'))
+    ringOverSlide.value = isOverSlide || isOverNav
+  } else {
+    ringOverSlide.value = false
+  }
+  showCursorRing.value = true
+}
+
+function hideCursorRing() {
+  showCursorRing.value = false
+  cursorRingNeedsSnap = true
+}
+
+function initCursorRing() {
+  if (!window.matchMedia('(pointer: fine)').matches) {
+    cursorRingEnabled.value = false
+    return
+  }
+  cursorRingEnabled.value = true
+  window.addEventListener('mousemove', onWindowMouseMoveForRing, { passive: true })
+  window.addEventListener('blur', hideCursorRing)
+  window.addEventListener('mouseout', onWindowMouseOutForRing, { passive: true })
+  cleanups.push(() => {
+    window.removeEventListener('mousemove', onWindowMouseMoveForRing)
+    window.removeEventListener('blur', hideCursorRing)
+    window.removeEventListener('mouseout', onWindowMouseOutForRing)
+  })
+}
+
+function onWindowMouseOutForRing(event) {
+  const rel = event.relatedTarget
+  if (rel == null || (rel instanceof Node && !document.documentElement.contains(rel))) {
+    hideCursorRing()
   }
 }
 
-const initParticleBackground = () => {
-  const canvas = bgCanvas.value
-  const root = pageRoot.value
-  if (!canvas || !root) return null
-
-  bgCtx = canvas.getContext('2d')
-  if (!bgCtx) return null
-
-  const resizeCanvas = () => {
-    canvas.width = root.clientWidth
-    canvas.height = root.clientHeight
-  }
-
-  const onPointerMove = (event) => {
-    const rect = canvas.getBoundingClientRect()
-    new Circle(event.clientX - rect.left, event.clientY - rect.top, 24)
-  }
-
-  const animateParticles = () => {
-    bgAnimationId = requestAnimationFrame(animateParticles)
-    bgCtx.clearRect(0, 0, canvas.width, canvas.height)
-    for (let i = circleArr.length - 1; i >= 0; i -= 1) {
-      circleArr[i].update() && circleArr[i].render()
-    }
-  }
-
-  resizeCanvas()
-  root.addEventListener('pointermove', onPointerMove)
-  window.addEventListener('resize', resizeCanvas)
-  animateParticles()
-
-  return () => {
-    root.removeEventListener('pointermove', onPointerMove)
-    window.removeEventListener('resize', resizeCanvas)
-  }
-}
-
-onMounted(() => {
-  particleCleanup = initParticleBackground()
-
-  lenis = new Lenis({
-    lerp: isMobileView ? 0.12 : 0.075,
-    smoothWheel: true,
-    wheelMultiplier: isMobileView ? 0.7 : 0.9,
-    touchMultiplier: isMobileView ? 0.72 : 0.95,
-  })
-  lenis.on('scroll', ScrollTrigger.update)
-
-  tickerFn = (time) => {
-    lenis?.raf(time * 1000)
-  }
-  gsap.ticker.add(tickerFn)
-  gsap.ticker.lagSmoothing(0)
-
-  const cards = pageRoot.value?.querySelectorAll('.sticky-cards .card') || []
-  const totalCards = cards.length
-  if (!totalCards) return
-
-  const segmentSize = 0.5 / totalCards
-  const cardYOffset = isMobileView ? 2.2 : 3.6
-  const cardScaleStep = isMobileView ? 0.038 : 0.06
-  const maxVisibleBehind = isMobileView ? 3 : 5
-  const exitYPercent = isMobileView ? -185 : -250
-  const exitRotation = isMobileView ? 16 : 35
-
-  cards.forEach((card, i) => {
-    gsap.set(card, {
-      xPercent: -50,
-      yPercent: -50 + i * cardYOffset,
-      scale: 1 - i * cardScaleStep,
-      zIndex: totalCards - i,
-      autoAlpha: i <= maxVisibleBehind ? 1 : 0,
-      force3D: true,
-    })
-  })
-
-  cardsTrigger = ScrollTrigger.create({
-    trigger: pageRoot.value?.querySelector('.sticky-cards'),
-    start: 'top top',
-    end: `+=${window.innerHeight * (isMobileView ? 1.8 : 2.8)}px`,
-    pin: true,
-    pinSpacing: true,
-    scrub: isMobileView ? 0.28 : 0.48,
-    onUpdate: (self) => {
-      const cappedProgress = self.progress * (segmentSize * (totalCards - 1))
-      const activeIndex = Math.min(Math.floor(cappedProgress / segmentSize), totalCards - 1)
-      const segProgress = activeIndex === totalCards - 1
-        ? 0
-        : (cappedProgress - activeIndex * segmentSize) / segmentSize
-
-      cards.forEach((card, i) => {
-        if (i < activeIndex) {
-          gsap.set(card, {
-            yPercent: exitYPercent,
-            rotationX: exitRotation,
-            autoAlpha: 0,
-          })
-        } else if (i === activeIndex) {
-          gsap.set(card, {
-            yPercent: gsap.utils.interpolate(-50, -200, segProgress),
-            rotationX: gsap.utils.interpolate(0, exitRotation, segProgress),
-            scale: 1,
-            autoAlpha: 1,
-          })
-        } else {
-          const behindIndex = i - activeIndex
-          const currentYOffset = (behindIndex - segProgress) * cardYOffset
-          const currentScale = 1 - (behindIndex - segProgress) * cardScaleStep
-          const isVisible = behindIndex <= maxVisibleBehind
-
-          gsap.set(card, {
-            yPercent: -50 + currentYOffset,
-            rotationX: 0,
-            scale: currentScale,
-            autoAlpha: isVisible ? 1 : 0,
-          })
-        }
-      })
-    },
-  })
+onMounted(async () => {
+  await nextTick()
+  initializeSlider()
+  initCursorRing()
 })
 
 onBeforeUnmount(() => {
-  cardsTrigger?.kill()
-  if (tickerFn) gsap.ticker.remove(tickerFn)
-  lenis?.destroy()
-  particleCleanup?.()
-  cancelAnimationFrame(bgAnimationId)
-  circleArr.length = 0
-  bgCtx = null
+  cancelAnimationFrame(rafId)
+  cleanups.forEach((fn) => fn())
+  document.documentElement.style.removeProperty('--slider-moving')
+  document.documentElement.style.removeProperty('--movies-card-entrance-top-inset')
 })
 </script>
 
 <template>
-  <main ref="pageRoot" class="movies-page">
-    <canvas ref="bgCanvas" class="movies-bg-canvas"></canvas>
-
-    <section class="sticky-cards">
+  <main ref="rootRef" class="movies-page">
+    <div class="slider">
+      <div ref="trackRef" class="slide-track"></div>
+    </div>
+    <div
+      v-if="cursorRingEnabled"
+      v-show="showCursorRing"
+      class="movies-cursor-ring"
+      :style="{ left: `${ringX}px`, top: `${ringY}px` }"
+      aria-hidden="true"
+    >
       <div
-        class="card"
-        v-for="(item, idx) in movieCards"
-        :key="item.src"
-        :style="{ '--card-bg': item.bg, '--title-color': item.titleColor, '--meta-color': item.metaColor, '--card-glow': item.glow }"
-      >
-        <div class="poster-wrap">
-          <img :src="item.src" :alt="item.title" />
-        </div>
-        <h1 class="movie-title">{{ item.title }}</h1>
-        <p class="movie-quote">“{{ item.quote }}”</p>
-        <p class="movie-meta">{{ item.meta }}</p>
-      </div>
-    </section>
+        class="movies-cursor-ring__disc"
+        :class="{ 'movies-cursor-ring__disc--compact': ringOverSlide }"
+      />
+    </div>
   </main>
 </template>
 
 <style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap");
-@import url("https://fonts.cdnfonts.com/css/druk-wide-bold");
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
 
-.movies-page {
-  position: relative;
-  min-height: 100svh;
-  background: #faf5e5;
-  overflow: hidden;
-}
-
-.movies-page::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(90deg, #111 1px, transparent 1px);
-  background-size: 50px 100%;
-  pointer-events: none;
-  mask-image: linear-gradient(to bottom, rgb(235, 228, 228) 0%, rgba(226, 7, 7, 0) 70%);
-  -webkit-mask-image: linear-gradient(to bottom, rgb(235, 225, 225) 0%, rgba(196, 18, 18, 0) 70%);
-  z-index: 0;
-}
-
-.movies-bg-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.movies-page * {
+* {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-.movies-page img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
+.movies-page {
+  font-family: 'DM Mono', monospace;
+  background-color: #0f0f0f;
+  color: #fff;
+  min-height: 100svh;
 }
 
-.movies-page section {
+.movies-cursor-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 10001;
+  transform: translate(-50%, -50%);
+  will-change: left, top;
+}
+
+.movies-cursor-ring__disc {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(254, 66, 73, 1);
+  transform: scale(1);
+  transform-origin: 50% 50%;
+  transition: transform 0.52s cubic-bezier(0.22, 1.18, 0.36, 1);
+  will-change: transform;
+}
+
+.movies-cursor-ring__disc--compact {
+  transform: scale(0.2632);
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0.2, 1);
+}
+
+.movies-page :deep(a),
+.movies-page :deep(p) {
+  display: block;
+  color: #fff;
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.slider {
   position: relative;
-  width: 100%;
+  width: 100vw;
   height: 100svh;
   overflow: hidden;
+  user-select: none;
 }
 
-.movies-page .sticky-cards {
-  background-color: transparent;
-  perspective: 850px;
-  z-index: 2;
+.slider :deep(.slide-track) {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
 }
 
-.movies-page .sticky-cards .card {
-  --card-side-gap: 2rem;
+.slider :deep(.slide) {
+  flex-shrink: 0;
+  width: 430px;
+  height: 620px;
+  margin: 0 50px;
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%);
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.slider :deep(.slide-image) {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: inset(var(--movies-card-entrance-top-inset, 0%) 0 0 0);
+  will-change: clip-path;
+}
+
+.slider :deep(.slide-image img) {
+  width: 100%;
+  height: 45%;
+  object-fit: cover;
+  will-change: transform;
+  object-position: center;
+  transform: scale(2.25);
+  user-select: none;
+}
+
+.slider :deep(.slide-overlay) {
+  position: absolute;
+  bottom: -1.75rem;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.8rem;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.slider :deep(.slide:hover .slide-overlay) {
+  opacity: 1;
+}
+
+.slider :deep(.project-year) {
+  position: absolute;
+  top: -1.75rem;
+  right: 0;
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-align: right;
+  pointer-events: none;
+  z-index: 11;
+  opacity: 0;
+  transform: translate3d(0, 1.1rem, 0);
+  transition: opacity 0.34s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.slider :deep(.slide:hover .project-year) {
+  opacity: calc(1 - var(--slider-moving, 1));
+  transform: translate3d(0, 0, 0);
+}
+
+.slider :deep(.project-title-center) {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 65%;
-  height: 66%;
-  display: grid;
-  place-items: center;
-  padding: 1.6rem;
-  border-radius: 1rem;
-  color: #fff;
-  transform-origin: center bottom;
-  transform-style: preserve-3d;
+  transform: translate(-50%, -50%) perspective(1400px) rotateX(-88deg) scale(0.96);
+  transform-origin: 50% 0%;
+  width: max-content;
+  max-width: none;
+  padding: 0 1rem;
+  font-size: clamp(3.2rem, 7.2vw, 7rem);
+  line-height: 0.86;
+  letter-spacing: 0.08em;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0;
+  transition: opacity 0.38s ease, transform 1.18s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
-  contain: layout paint;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--card-bg) 85%, white 15%);
-  border: 1px solid rgb(255 255 255 / 34%);
-  box-shadow: 0 22px 54px rgb(103 138 190 / 12%), 0 18px 48px rgb(0 0 0 / 12%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backface-visibility: hidden;
 }
 
-.movies-page .poster-wrap {
-  position: absolute;
-  right: 2rem;
-  top: 50%;
-  transform: translateY(-50%) translateZ(20px);
-  height: calc(100% - 3.2rem);
-  aspect-ratio: 2 / 3;
-  border-radius: 0.8rem;
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 40%);
-  box-shadow: 0 20px 40px rgb(0 0 0 / 16%);
+.slider :deep(.slide:hover .project-title-center) {
+  opacity: calc(1 - var(--slider-moving, 1));
+  transform: translate(-50%, -50%) perspective(1400px) rotateX(0deg) scale(1);
 }
 
-.movies-page .movie-title {
-  position: absolute;
-  left: var(--card-side-gap);
-  top: 1.55rem;
-  z-index: 2;
-  width: calc(100% - var(--card-side-gap) - (2rem + ((100% - 3.2rem) * 2 / 3)));
-  display: block;
-  text-align: center;
-  margin: 0;
-  color: var(--title-color);
-  text-shadow: 0 7px 26px rgb(255 255 255 / 16%), 0 12px 36px rgb(86 120 177 / 14%);
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
-  font-size: clamp(2.55rem, 5.2vw, 4.8rem);
-  font-weight: 700;
-  line-height: 0.92;
-  text-transform: none;
+.slider :deep(.project-title) {
+  font-weight: 500;
+  font-size: 0.8rem;
+  opacity: 0;
+  transform: translate3d(0, 1.1rem, 0);
+  transition: opacity 0.34s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.movies-page .movie-quote {
-  position: absolute;
-  left: var(--card-side-gap);
-  top: 50%;
-  z-index: 2;
-  width: calc(100% - var(--card-side-gap) - (2rem + ((100% - 3.2rem) * 2 / 3)));
-  display: block;
-  text-align: center;
-  transform: translateY(-50%);
-  margin: 0;
-  color: #1c2434;
-  text-shadow: 0 4px 18px rgb(255 255 255 / 28%);
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
-  font-size: clamp(1.2rem, 1.95vw, 1.7rem);
-  line-height: 1.42;
-  letter-spacing: 0.005em;
+.slider :deep(.slide:hover .project-title) {
+  opacity: calc(1 - var(--slider-moving, 1));
+  transform: translate3d(0, 0, 0);
 }
 
-.movies-page .movie-meta {
-  position: absolute;
-  left: var(--card-side-gap);
-  bottom: 1.6rem;
-  z-index: 2;
-  text-align: left;
-  color: var(--meta-color);
-  text-shadow: 0 4px 18px rgb(255 255 255 / 22%);
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
-  font-size: 1rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  opacity: 0.95;
+.slider :deep(.project-arrow) {
+  display: none;
+}
+
+.slider :deep(.project-arrow svg) {
+  display: none;
 }
 
 @media (max-width: 1000px) {
-  .movies-page .sticky-cards {
-    perspective: 620px;
-  }
-
-  .movies-page .bg-quote {
-    max-width: 78vw;
-    font-size: clamp(1.35rem, 6.4vw, 2.2rem) !important;
-    opacity: 0.14 !important;
-  }
-
-  .movies-page .sticky-cards .card {
-    --mobile-gap: 0.75rem;
-    --card-side-gap: var(--mobile-gap);
-    width: min(84vw, 360px);
-    height: min(72svh, 620px);
-    padding: var(--mobile-gap);
-    border-radius: 0.9rem;
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    align-items: center;
-    justify-items: center;
-    row-gap: var(--mobile-gap);
-    box-shadow: 0 12px 28px rgb(0 0 0 / 14%);
-  }
-
-  .movies-page .poster-wrap {
-    position: relative;
-    left: auto;
-    top: auto;
-    right: auto;
-    transform: none;
-    width: min(62vw, 250px);
-    height: auto;
-    aspect-ratio: 2 / 3;
-    border-radius: 0.68rem;
-  }
-
-  .movies-page .movie-title {
-    position: relative;
-    left: auto;
-    top: auto;
-    transform: none;
-    width: 100%;
-    text-align: center;
-    font-size: clamp(1.42rem, 6.2vw, 2rem);
-    line-height: 1;
-    margin: 0;
-  }
-
-  .movies-page .movie-meta {
-    position: relative;
-    left: auto;
-    bottom: auto;
-    transform: none;
-    width: 100%;
-    text-align: center;
-    font-size: 0.9rem;
-    letter-spacing: 0.03em;
-    margin: 0;
-  }
-
-  .movies-page .movie-quote {
-    position: relative;
-    left: auto;
-    top: auto;
-    transform: none;
-    width: 100%;
-    text-align: center;
-    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
-    font-size: 1.12rem;
-    line-height: 1.44;
-    margin: 0;
+  .slider :deep(.slide) {
+    width: 210px;
+    height: 300px;
+    margin: 0 12px;
   }
 }
 </style>

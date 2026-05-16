@@ -1,24 +1,43 @@
 export const siteFooter = {
-  icpLabel: '黔ICP备2026005154号-1',
-  icpHref: 'https://beian.miit.gov.cn/',
-  publicSecurityLabel: '贵公网安备 52042202000085号',
-  publicSecurityHref: 'https://beian.mps.gov.cn/#/query/webSearch?code=52042202000085',
+  brandName: 'maoJun',
+  logoText: 'M',
+  socialLinks: [
+    { label: 'GitHub', href: 'https://github.com', icon: 'GH', external: true },
+    { label: 'X', href: 'https://x.com', icon: 'X', external: true },
+  ],
+  mainLinks: [
+    { label: 'Musics', href: '/musics' },
+    { label: 'Pictures', href: '/pictures' },
+    { label: 'Movies', href: '/movies' },
+    { label: 'About', href: '/about' },
+  ],
+  legalLinks: [
+    { label: '黔ICP备2026005154号-1', href: 'https://beian.miit.gov.cn/', external: true },
+    { label: '贵公网安备 52042202000085号', href: 'https://beian.mps.gov.cn/#/query/webSearch?code=52042202000085', external: true },
+  ],
+  copyright: {
+    text: '© 2026 maoJun',
+    license: 'All rights reserved',
+  },
 }
 
 export const siteNavLinks = [
-  { label: 'Movies', href: '/movies' },
   { label: 'Musics', href: '/musics' },
   { label: 'Pictures', href: '/pictures' },
-  { label: 'Slow', href: '/slow' },
+  { label: 'Movies', href: '/movies' },
 ]
 
 export const homePageConfig = {
   brand: 'maoJun',
   aboutLabel: 'about',
-  heroImage: '/home/red.webp',
+  heroMedia: {
+    video: '/home/14307427_1920_1080_60fps.mp4',
+    loaderCenterImage: '/home/home.png',
+    fallbackPoster: '/home/red.webp',
+  },
   burningImage: '/burning.webp',
-  cardsImage: '/art_01-01.jpg',
-  cardBackImages: ['/card1.jpeg', '/card2.jpeg', '/card3.jpeg'],
+  cardsImage: '/home/part4/pexels-steve-23749488.jpg',
+  cardBackImages: ['/home/part4/1.jpg', '/home/part4/2.jpg', '/home/part4/3.jpg'],
   heroTip: 'Scroll to Explore',
   introLines: [
     '要怎么做才能年纪轻轻就过上那种生活',
@@ -99,8 +118,8 @@ export const moviesPageConfig = {
   movies: [
     { file: 'p2497136132.jpg', title: '声之形', meta: '日本 · 2016', quote: '活着，本身就已经很了不起了。' },
     { file: 'p2520095279.jpg', title: '燃烧', meta: '韩国 · 2018', quote: '有些人就像从未存在过一样消失。' },
-    { file: 'p2868462052.jpg', title: '花束般的恋爱', meta: '日本 · 2021', quote: '喜欢是会枯萎的，但记忆不会。'},
-    { file: 'p2888332880.jpg', title: '余生那些年', meta: '日本 · 2022', quote: '就算明天见不到你，今天也要好好喜欢你。' }
+    { file: 'p2868462052.jpg', title: '花束般的恋爱', meta: '日本 · 2021', quote: '喜欢是会枯萎的，但记忆不会。' },
+    { file: 'p2888332880.jpg', title: '余生那些年', meta: '日本 · 2022', quote: '就算明天见不到你，今天也要好好喜欢你。' },
   ],
 }
 

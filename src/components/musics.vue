@@ -2,8 +2,10 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import * as THREE from 'three'
 import Lenis from 'lenis'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { musicsPageConfig } from '../config/siteContent'
 import { vertexShader, fragmentShader } from './shaders.js'
+import MovieCards from './movie-cards.vue'
 
 const heroSection = ref(null)
 const spiralCanvas = ref(null)
@@ -105,6 +107,7 @@ onMounted(() => {
 
   lenis.on('scroll', (e) => {
     scrollY = window.pageYOffset || 0
+    ScrollTrigger.update()
 
     if (!allowScrollSpin) {
       spinVelocity *= 0.82
@@ -229,6 +232,7 @@ onMounted(() => {
   window.addEventListener('resize', onResize)
 
   animate()
+  requestAnimationFrame(() => ScrollTrigger.refresh())
 })
 
 onBeforeUnmount(() => {
@@ -259,9 +263,7 @@ onBeforeUnmount(() => {
       <h1>{{ pageConfig.heroTitle }}</h1>
       <canvas ref="spiralCanvas" class="spiral-canvas"></canvas>
     </section>
-    <section class="about">
-      <h3>{{ pageConfig.sectionTitle }}</h3>
-    </section>
+    <MovieCards embedded />
   </main>
 </template>
 
@@ -312,14 +314,6 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
   pointer-events: none;
-}
-
-.pictures-page .about {
-  height: 100svh;
-  background-color: #171717;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .pictures-page .spiral-canvas {
