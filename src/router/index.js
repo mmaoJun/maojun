@@ -2,10 +2,15 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { nextTick } from 'vue'
 
 import Musics from '../components/musics.vue'
-import Pictures from '../components/pictures.vue'
-import About from '../components/about.vue'
+import Pictures from '../components/about.vue'
+import About from '../components/pictures.vue'
 import Movies from '../components/movies.vue'
-import { coverRouteCurtain, revealRouteCurtain } from '../components/ui/routeCurtainController'
+import {
+  coverRouteCurtain,
+  emitRouteRevealStart,
+  revealRouteCurtain,
+  setRouteContentVisible,
+} from '../components/ui/routeCurtainController'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,6 +31,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   await coverRouteCurtain()
+  setRouteContentVisible(true)
   next()
 })
 
@@ -35,6 +41,8 @@ router.afterEach(async () => {
     isFirstNavigation = false
     return
   }
+  setRouteContentVisible(true)
+  emitRouteRevealStart()
   await revealRouteCurtain()
 })
 

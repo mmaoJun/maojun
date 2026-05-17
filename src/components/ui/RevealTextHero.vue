@@ -164,6 +164,7 @@ onBeforeUnmount(() => {
 .reveal-letter__ghost {
   position: relative;
   color: var(--rt-text-color);
+  text-shadow: none;
 }
 
 .reveal-letter__image {
@@ -175,6 +176,7 @@ onBeforeUnmount(() => {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-shadow: none;
 }
 
 .reveal-letter__overlay {
@@ -183,6 +185,7 @@ onBeforeUnmount(() => {
   color: var(--rt-overlay-color);
   pointer-events: none;
   opacity: 0;
+  text-shadow: none;
   animation: overlaySweep var(--overlay-duration, 0.4s) var(--overlay-delay) ease-in-out forwards;
 }
 

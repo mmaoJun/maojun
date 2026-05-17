@@ -1,17 +1,9 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import * as THREE from 'three'
+import { picturesPageConfig } from '../config/siteContent'
 
-const images = [
-  '/media-musics/p1218345200.webp',
-  '/media-musics/s26262544.jpg',
-  '/media-musics/s2702527.jpg',
-  '/media-musics/s28297901.jpg',
-  '/media-musics/s28361360.jpg',
-  '/media-movies/p2520095279.jpg',
-  '/media-movies/p2868462052.jpg',
-  '/media-slow/p2561886540.webp',
-]
+const images = picturesPageConfig.galleryImages
 
 const canvasHost = ref(null)
 const webglSupported = ref(true)
@@ -276,19 +268,19 @@ onBeforeUnmount(disposeAll)
     </div>
 
     <div class="overlay overlay-center">
-      <h1><span>mao</span>Jun</h1>
+      <h1><span>MAO</span>JUN</h1>
     </div>
 
     <div class="overlay overlay-bottom">
-      <p>Use mouse wheel, arrow keys, or touch to navigate</p>
-      <p class="muted">Auto-play resumes after 3 seconds of inactivity</p>
+      <p>Contact me</p>
+      <p class="muted">382931184@qq.com</p>
     </div>
   </main>
 </template>
 
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=IBM+Plex+Mono:wght@500&display=swap");
-.pictures-page{position:relative;width:100%;height:100svh;overflow:hidden;background:radial-gradient(circle at 20% 18%,rgb(255 255 255 /.05) 0,transparent 24%),radial-gradient(circle at 80% 76%,rgb(255 255 255 /.04) 0,transparent 22%),linear-gradient(180deg,rgb(255 255 255 /.04) 1px,transparent 1px),linear-gradient(90deg,rgb(255 255 255 /.04) 1px,transparent 1px),linear-gradient(180deg,#020202 0%,#090909 100%);background-size:auto,auto,22px 22px,22px 22px,100% 100%}
+.pictures-page{position:relative;width:100%;height:100svh;overflow:hidden;background:#090909}
 .gallery-canvas,.gallery-canvas :deep(canvas){width:100%;height:100%;display:block}
 .overlay{position:fixed;left:0;right:0;pointer-events:none;z-index:5}
 .overlay-center{inset:0;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;mix-blend-mode:exclusion}

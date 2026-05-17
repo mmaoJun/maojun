@@ -18,6 +18,31 @@ const cards = [
     title: 'DESIGN BY AI',
     image: '/home/part4/3.jpg',
   },
+  {
+    title: 'DESIGN BY AI',
+    image: '/home/part4/4.jpg',
+  },
+  {
+    title: 'DESIGN BY AI',
+    image: '/home/part4/5.jpg',
+    image: '/home/part4/3.jpg',
+  },
+  {
+    title: 'DESIGN BY AI',
+    image: '/home/part4/6.jpg',
+  },
+  {
+    title: 'DESIGN BY AI',
+    image: '/home/part4/7.jpg',
+  },
+  {
+    title: 'DESIGN BY AI',
+    image: '/home/part4/8.jpg',
+  },
+  {
+    title: 'DESIGN BY AI',
+    image: '/home/part4/9.jpg',
+  },
 ]
 
 const marqueeCards = computed(() => [...cards, ...cards])
@@ -29,8 +54,8 @@ const duration = computed(() => `${cards.length * 2500}ms`)
     <div class="marquee-cards-heading">
       <h2>Design By AI</h2>
       <p>
-        Stay ahead of the curve with fresh content on code, design, startups,
-        and everything in between.
+        The UI design is inspired by 21st.dev, and the image materials come from pexels.com. 
+        The design is created using AI tools, showcasing the potential of AI in creative processes.
       </p>
     </div>
 
@@ -73,7 +98,7 @@ const duration = computed(() => `${cards.length * 2500}ms`)
 .marquee-cards-section {
   width: 100%;
   padding: 5.5rem 0 10rem;
-  background: #fff6de;
+  background: #fcfcfb;
   color: #0f172a;
   font-family: 'Poppins', sans-serif;
 }

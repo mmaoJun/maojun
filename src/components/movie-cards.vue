@@ -15,7 +15,6 @@ const props = defineProps({
 gsap.registerPlugin(ScrollTrigger)
 
 const pageRoot = ref(null)
-const bgCanvas = ref(null)
 const isMobileView = window.matchMedia('(max-width: 1000px)').matches
 const pageConfig = moviesPageConfig
 const randomCardPalette = ['#ff2d55', '#ff6a00', '#ffd60a', '#00c853', '#00b8ff', '#3a86ff', '#7b2cff', '#ff006e', '#06d6a0', '#ff3b30']
@@ -37,85 +36,8 @@ const movieCards = computed(() =>
 let lenis = null
 let tickerFn = null
 let cardsTrigger = null
-let bgCtx = null
-let bgAnimationId = 0
-let particleCleanup = null
-const circleArr = []
-
-class Circle {
-  constructor(x, y, r) {
-    this.x = x
-    this.y = y
-    this.r = r
-    this.color = `rgb(${Math.floor(Math.random() * 80) + 175}, ${Math.floor(Math.random() * 120) + 80}, ${Math.floor(Math.random() * 90) + 20})`
-    this.dx = Math.random() * 3.2 - 1.6
-    this.dy = Math.random() * 3.2 - 1.6
-    circleArr.push(this)
-  }
-
-  render() {
-    if (!bgCtx) return
-    bgCtx.beginPath()
-    bgCtx.arc(this.x, this.y, this.r, 0, Math.PI * 2, true)
-    bgCtx.fillStyle = this.color
-    bgCtx.fill()
-  }
-
-  update() {
-    this.x += this.dx
-    this.y += this.dy
-    this.r -= 0.14
-
-    if (this.r < 0) {
-      const index = circleArr.indexOf(this)
-      if (index >= 0) circleArr.splice(index, 1)
-      return false
-    }
-
-    return true
-  }
-}
-
-const initParticleBackground = () => {
-  const canvas = bgCanvas.value
-  const root = pageRoot.value
-  if (!canvas || !root) return null
-
-  bgCtx = canvas.getContext('2d')
-  if (!bgCtx) return null
-
-  const resizeCanvas = () => {
-    canvas.width = root.clientWidth
-    canvas.height = root.clientHeight
-  }
-
-  const onPointerMove = (event) => {
-    const rect = canvas.getBoundingClientRect()
-    new Circle(event.clientX - rect.left, event.clientY - rect.top, 24)
-  }
-
-  const animateParticles = () => {
-    bgAnimationId = requestAnimationFrame(animateParticles)
-    bgCtx.clearRect(0, 0, canvas.width, canvas.height)
-    for (let i = circleArr.length - 1; i >= 0; i -= 1) {
-      circleArr[i].update() && circleArr[i].render()
-    }
-  }
-
-  resizeCanvas()
-  root.addEventListener('pointermove', onPointerMove)
-  window.addEventListener('resize', resizeCanvas)
-  animateParticles()
-
-  return () => {
-    root.removeEventListener('pointermove', onPointerMove)
-    window.removeEventListener('resize', resizeCanvas)
-  }
-}
 
 onMounted(() => {
-  particleCleanup = initParticleBackground()
-
   if (!props.embedded) {
     lenis = new Lenis({
       lerp: isMobileView ? 0.12 : 0.075,
@@ -208,17 +130,11 @@ onBeforeUnmount(() => {
   cardsTrigger?.kill()
   if (tickerFn) gsap.ticker.remove(tickerFn)
   lenis?.destroy()
-  particleCleanup?.()
-  cancelAnimationFrame(bgAnimationId)
-  circleArr.length = 0
-  bgCtx = null
 })
 </script>
 
 <template>
   <main ref="pageRoot" class="movie-cards-page" :class="{ 'is-embedded': embedded }">
-    <canvas ref="bgCanvas" class="movie-cards-bg-canvas"></canvas>
-
     <section class="sticky-cards">
       <div
         class="card"
@@ -264,20 +180,6 @@ onBeforeUnmount(() => {
   z-index: 0;
 }
 
-.movie-cards-bg-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.movie-cards-page.is-embedded .movie-cards-bg-canvas {
-  position: absolute;
-}
-
 .movie-cards-page * {
   margin: 0;
   padding: 0;
@@ -318,153 +220,99 @@ onBeforeUnmount(() => {
   color: #fff;
   transform-origin: center bottom;
   transform-style: preserve-3d;
-  will-change: transform, opacity;
-  contain: layout paint;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--card-bg) 85%, white 15%);
-  border: 1px solid rgb(255 255 255 / 34%);
-  box-shadow: 0 22px 54px rgb(103 138 190 / 12%), 0 18px 48px rgb(0 0 0 / 12%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--card-bg, #111111);
+  box-shadow: 0 22px 80px rgb(0 0 0 / 0.22), inset 0 0 0 1px rgb(255 255 255 / 0.05);
 }
 
-.movie-cards-page .poster-wrap {
+.movie-cards-page .sticky-cards .poster-wrap {
   position: absolute;
-  right: 2rem;
-  top: 50%;
-  transform: translateY(-50%) translateZ(20px);
-  height: calc(100% - 3.2rem);
-  aspect-ratio: 2 / 3;
-  border-radius: 0.8rem;
+  inset: 0;
+  border-radius: inherit;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 40%);
-  box-shadow: 0 20px 40px rgb(0 0 0 / 16%);
 }
 
-.movie-cards-page .movie-title {
+.movie-cards-page .sticky-cards .poster-wrap::after {
+  content: "";
   position: absolute;
-  left: var(--card-side-gap);
-  top: 1.55rem;
-  z-index: 2;
-  width: calc(100% - var(--card-side-gap) - (2rem + ((100% - 3.2rem) * 2 / 3)));
-  display: block;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.04) 0%, rgb(0 0 0 / 0.2) 100%);
+}
+
+.movie-cards-page .sticky-cards .movie-title,
+.movie-cards-page .sticky-cards .movie-quote,
+.movie-cards-page .sticky-cards .movie-meta {
+  position: relative;
+  z-index: 1;
+}
+
+.movie-cards-page .sticky-cards .movie-title {
+  width: min(100%, 14ch);
+  margin-inline: auto;
+  align-self: center;
+  justify-self: center;
   text-align: center;
-  margin: 0;
-  color: var(--title-color);
-  text-shadow: 0 7px 26px rgb(255 255 255 / 16%), 0 12px 36px rgb(86 120 177 / 14%);
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
-  font-size: clamp(2.55rem, 5.2vw, 4.8rem);
+  font-family: "Druk Wide Bold", "Barlow Condensed", sans-serif;
+  font-size: clamp(3rem, 7vw, 6.4rem);
   font-weight: 700;
-  line-height: 0.92;
-  text-transform: none;
-}
-
-.movie-cards-page .movie-quote {
-  position: absolute;
-  left: var(--card-side-gap);
-  top: 50%;
-  z-index: 2;
-  width: calc(100% - var(--card-side-gap) - (2rem + ((100% - 3.2rem) * 2 / 3)));
-  display: block;
-  text-align: center;
-  transform: translateY(-50%);
-  margin: 0;
-  color: #1c2434;
-  text-shadow: 0 4px 18px rgb(255 255 255 / 28%);
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
-  font-size: clamp(1.2rem, 1.95vw, 1.7rem);
-  line-height: 1.42;
-  letter-spacing: 0.005em;
-}
-
-.movie-cards-page .movie-meta {
-  position: absolute;
-  left: var(--card-side-gap);
-  bottom: 1.6rem;
-  z-index: 2;
-  text-align: left;
-  color: var(--meta-color);
-  text-shadow: 0 4px 18px rgb(255 255 255 / 22%);
-  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
-  font-size: 1rem;
-  letter-spacing: 0.05em;
+  line-height: 0.88;
+  letter-spacing: -0.06em;
   text-transform: uppercase;
-  opacity: 0.95;
+  color: var(--title-color, #ffffff);
+  text-shadow: 0 7px 26px rgb(255 255 255 / 16%), 0 12px 36px rgb(86 120 177 / 14%);
+}
+
+.movie-cards-page .sticky-cards .movie-quote {
+  position: absolute;
+  left: var(--card-side-gap);
+  bottom: 2.65rem;
+  width: min(32vw, 26rem);
+  font-size: clamp(0.8rem, 1vw, 0.92rem);
+  line-height: 1.65;
+  color: var(--meta-color, rgb(255 255 255 / 0.88));
+  letter-spacing: 0.04em;
+}
+
+.movie-cards-page .sticky-cards .movie-meta {
+  position: absolute;
+  right: var(--card-side-gap);
+  bottom: 2.6rem;
+  font-family: "DM Mono", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--meta-color, rgb(255 255 255 / 0.88));
 }
 
 @media (max-width: 1000px) {
-  .movie-cards-page .sticky-cards {
-    perspective: 620px;
-  }
-
-  .movie-cards-page .bg-quote {
-    max-width: 78vw;
-    font-size: clamp(1.35rem, 6.4vw, 2.2rem) !important;
-    opacity: 0.14 !important;
-  }
-
   .movie-cards-page .sticky-cards .card {
-    --mobile-gap: 0.75rem;
-    --card-side-gap: var(--mobile-gap);
-    width: min(84vw, 360px);
-    height: min(72svh, 620px);
-    padding: var(--mobile-gap);
-    border-radius: 0.9rem;
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    align-items: center;
-    justify-items: center;
-    row-gap: var(--mobile-gap);
-    box-shadow: 0 12px 28px rgb(0 0 0 / 14%);
+    width: 100%;
+    height: 100%;
+    padding: 1.25rem;
+    border-radius: 0;
   }
 
-  .movie-cards-page .poster-wrap {
-    position: relative;
-    left: auto;
-    top: auto;
+  .movie-cards-page .sticky-cards .movie-title {
+    width: min(100%, 12ch);
+    font-size: clamp(2.35rem, 12vw, 4rem);
+    line-height: 0.9;
+  }
+
+  .movie-cards-page .sticky-cards .movie-quote {
+    left: 1.25rem;
+    right: 1.25rem;
+    bottom: 5.25rem;
+    width: auto;
+    max-width: none;
+    font-size: 0.76rem;
+    line-height: 1.55;
+  }
+
+  .movie-cards-page .sticky-cards .movie-meta {
+    left: 1.25rem;
     right: auto;
-    transform: none;
-    width: min(62vw, 250px);
-    height: auto;
-    aspect-ratio: 2 / 3;
-    border-radius: 0.68rem;
-  }
-
-  .movie-cards-page .movie-title {
-    position: relative;
-    left: auto;
-    top: auto;
-    transform: none;
-    width: 100%;
-    text-align: center;
-    font-size: clamp(1.42rem, 6.2vw, 2rem);
-    line-height: 1;
-    margin: 0;
-  }
-
-  .movie-cards-page .movie-meta {
-    position: relative;
-    left: auto;
-    bottom: auto;
-    transform: none;
-    width: 100%;
-    text-align: center;
-    font-size: 0.9rem;
-    letter-spacing: 0.03em;
-    margin: 0;
-  }
-
-  .movie-cards-page .movie-quote {
-    position: relative;
-    left: auto;
-    top: auto;
-    transform: none;
-    width: 100%;
-    text-align: center;
-    font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
-    font-size: 1.12rem;
-    line-height: 1.44;
-    margin: 0;
+    bottom: 3rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
   }
 }
 </style>

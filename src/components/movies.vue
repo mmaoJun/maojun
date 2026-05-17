@@ -1,17 +1,10 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { subscribeRouteRevealStart } from './ui/routeCurtainController'
+import StoryScroll from './ui/StoryScroll.vue'
+import { moviesPageConfig } from '../config/siteContent'
 
-const sliderData = [
-  { title: '千と千尋', year: '2019', img: '/media-slow/p2181503417.webp', url: 'https://movie.douban.com/subject/1291561/' },
-  { title: '教父', year: '1972', img: '/media-slow/p2205148825.webp', url: 'https://movie.douban.com/subject/1291841/' },
-  { title: '燃烧 버닝', year: '2018', img: '/media-slow/p2542529344.webp', url: 'https://movie.douban.com/subject/26842702/' },
-  { title: '新世界', year: '2013', img: '/media-slow/p2561886540.webp', url: 'https://movie.douban.com/subject/10437779/' },
-  { title: '寄生虫', year: '2019', img: '/media-slow/p2565216182.webp', url: 'https://movie.douban.com/subject/27010768/' },
-  { title: '杀人回忆', year: '2003', img: '/media-slow/p2576658975.webp', url: 'https://movie.douban.com/subject/1300299/' },
-  { title: '花束般的恋爱', year: '2022', img: '/media-slow/p2674630000.webp', url: 'https://movie.douban.com/subject/34874432/' },
-  { title: '余生那些年', year: '2023', img: '/media-slow/p2868242100.webp', url: 'https://movie.douban.com/subject/35418583/' },
-  { title: '君の名は。', year: '2016', img: '/media-slow/p2906091728.webp', url: 'https://movie.douban.com/subject/26683290/' },
-]
+const sliderData = moviesPageConfig.sliderItems
 
 const rootRef = ref(null)
 const trackRef = ref(null)
@@ -39,6 +32,13 @@ const config = {
   LERP_FACTOR: 0.05,
   MAX_VELOCITY: 150,
   ENTRANCE_DURATION: 1200,
+  ENTRY_SLIDE_DURATION: 5000,
+  ENTRY_START_SPEED: 15.5,
+  ENTRY_DRIFT_SPEED: 0.42,
+  DRAG_LERP: 0.22,
+  RELEASE_LERP: 0.12,
+  HOVER_DECEL: 0.085,
+  HOVER_ACCEL: 0.045,
 }
 
 const totalSlideCount = sliderData.length
@@ -49,6 +49,7 @@ const state = {
   slideWidth: 390,
   slides: [],
   isDragging: false,
+  hoveredSlideCount: 0,
   startX: 0,
   lastX: 0,
   lastMouseX: 0,
@@ -61,9 +62,15 @@ const state = {
   isMobile: false,
   entranceProgress: 0,
   entranceStartAt: 0,
+  entrySlideActive: false,
+  entrySlideSpeed: 0,
+  autoSpeed: 0,
+  renderedSpeed: 0,
+  lastFrameAt: 0,
 }
 
 let rafId = 0
+let unsubscribeRevealStart = null
 const cleanups = []
 
 function checkMobile() {
@@ -78,6 +85,9 @@ function createSlideElement(index) {
     slide.style.width = '210px'
     slide.style.height = '300px'
   }
+
+  slide.addEventListener('mouseenter', handleSlideMouseEnter)
+  slide.addEventListener('mouseleave', handleSlideMouseLeave)
 
   const imageContainer = document.createElement('div')
   imageContainer.className = 'slide-image'
@@ -119,6 +129,21 @@ function createSlideElement(index) {
   return slide
 }
 
+function resetEntrySlide() {
+  const startOffset = -(totalSlideCount * state.slideWidth * 2)
+  state.currentX = startOffset
+  state.targetX = startOffset
+  state.lastCurrentX = state.currentX
+  state.entranceProgress = 0
+  state.entranceStartAt = performance.now()
+  state.lastFrameAt = state.entranceStartAt
+  state.entrySlideSpeed = config.ENTRY_START_SPEED
+  state.autoSpeed = config.ENTRY_DRIFT_SPEED
+  state.renderedSpeed = config.ENTRY_START_SPEED
+  state.entrySlideActive = true
+  document.documentElement.style.setProperty('--movies-card-entrance-top-inset', '90%')
+}
+
 function initializeSlides() {
   const track = trackRef.value
   if (!track) return
@@ -145,9 +170,7 @@ function initializeSlides() {
     state.slideWidth = firstSlide.offsetWidth + marginLeft + marginRight
   }
 
-  const startOffset = -(totalSlideCount * state.slideWidth * 2)
-  state.currentX = startOffset
-  state.targetX = startOffset
+  resetEntrySlide()
 }
 
 function updateSlidePositions() {
@@ -212,8 +235,39 @@ function updateEntranceAnimation() {
 }
 
 function animate() {
-  state.currentX += (state.targetX - state.currentX) * config.LERP_FACTOR
+  const now = performance.now()
+  const deltaMs = state.lastFrameAt ? (now - state.lastFrameAt) : 16.67
+  state.lastFrameAt = now
+
   updateEntranceAnimation()
+
+  if (state.entrySlideActive) {
+    const elapsed = now - state.entranceStartAt
+    const rawProgress = Math.min(elapsed / config.ENTRY_SLIDE_DURATION, 1)
+    const easedProgress = 1 - ((1 - rawProgress) ** 4)
+    state.entrySlideSpeed = config.ENTRY_START_SPEED + ((config.ENTRY_DRIFT_SPEED - config.ENTRY_START_SPEED) * easedProgress)
+    state.autoSpeed = state.entrySlideSpeed
+    state.renderedSpeed = state.entrySlideSpeed
+    state.targetX -= state.renderedSpeed * deltaMs
+    state.currentX += (state.targetX - state.currentX) * config.RELEASE_LERP
+
+    if (rawProgress >= 1) {
+      state.entrySlideActive = false
+      state.entrySlideSpeed = config.ENTRY_DRIFT_SPEED
+      state.autoSpeed = config.ENTRY_DRIFT_SPEED
+      state.renderedSpeed = config.ENTRY_DRIFT_SPEED
+    }
+  } else if (state.isDragging) {
+    state.currentX += (state.targetX - state.currentX) * config.DRAG_LERP
+  } else {
+    state.autoSpeed = config.ENTRY_DRIFT_SPEED
+    const targetSpeed = state.hoveredSlideCount > 0 ? 0 : state.autoSpeed
+    const speedLerp = state.hoveredSlideCount > 0 ? config.HOVER_DECEL : config.HOVER_ACCEL
+    state.renderedSpeed += (targetSpeed - state.renderedSpeed) * speedLerp
+    state.targetX -= state.renderedSpeed * deltaMs
+    state.currentX += (state.targetX - state.currentX) * config.RELEASE_LERP
+  }
+
   updateMovingState()
   updateSlidePositions()
   updateParallax()
@@ -223,6 +277,7 @@ function animate() {
 
 function handleTouchStart(event) {
   state.isDragging = true
+  state.entrySlideActive = false
   state.startX = event.touches[0].clientX
   state.lastX = state.targetX
   state.dragDistance = 0
@@ -254,6 +309,7 @@ function handleTouchEnd() {
 function handleMouseDown(event) {
   event.preventDefault()
   state.isDragging = true
+  state.entrySlideActive = false
   state.startX = event.clientX
   state.lastMouseX = event.clientX
   state.lastX = state.targetX
@@ -280,9 +336,18 @@ function handleMouseMove(event) {
 
 function handleMouseUp() {
   state.isDragging = false
+  state.lastX = state.targetX
   window.setTimeout(() => {
     state.hasActuallyDragged = false
   }, 100)
+}
+
+function handleSlideMouseEnter() {
+  state.hoveredSlideCount += 1
+}
+
+function handleSlideMouseLeave() {
+  state.hoveredSlideCount = Math.max(0, state.hoveredSlideCount - 1)
 }
 
 function handleResize() {
@@ -297,7 +362,6 @@ function initializeEventListeners() {
   slider.addEventListener('touchmove', handleTouchMove)
   slider.addEventListener('touchend', handleTouchEnd)
   slider.addEventListener('mousedown', handleMouseDown)
-  slider.addEventListener('mouseleave', handleMouseUp)
   slider.addEventListener('dragstart', (event) => event.preventDefault())
 
   document.addEventListener('mousemove', handleMouseMove)
@@ -309,7 +373,6 @@ function initializeEventListeners() {
     slider.removeEventListener('touchmove', handleTouchMove)
     slider.removeEventListener('touchend', handleTouchEnd)
     slider.removeEventListener('mousedown', handleMouseDown)
-    slider.removeEventListener('mouseleave', handleMouseUp)
     document.removeEventListener('mousemove', handleMouseMove)
     document.removeEventListener('mouseup', handleMouseUp)
     window.removeEventListener('resize', handleResize)
@@ -319,9 +382,7 @@ function initializeEventListeners() {
 function initializeSlider() {
   initializeSlides()
   initializeEventListeners()
-  state.entranceProgress = 0
-  state.entranceStartAt = performance.now()
-  document.documentElement.style.setProperty('--movies-card-entrance-top-inset', '90%')
+  resetEntrySlide()
   animate()
 }
 
@@ -397,10 +458,15 @@ onMounted(async () => {
   await nextTick()
   initializeSlider()
   initCursorRing()
+  unsubscribeRevealStart = subscribeRouteRevealStart(() => {
+    if (!rootRef.value?.isConnected) return
+    resetEntrySlide()
+  })
 })
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(rafId)
+  unsubscribeRevealStart?.()
   cleanups.forEach((fn) => fn())
   document.documentElement.style.removeProperty('--slider-moving')
   document.documentElement.style.removeProperty('--movies-card-entrance-top-inset')
@@ -408,23 +474,27 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main ref="rootRef" class="movies-page">
-    <div class="slider">
-      <div ref="trackRef" class="slide-track"></div>
-    </div>
-    <div
-      v-if="cursorRingEnabled"
-      v-show="showCursorRing"
-      class="movies-cursor-ring"
-      :style="{ left: `${ringX}px`, top: `${ringY}px` }"
-      aria-hidden="true"
-    >
+  <div class="movies-page-shell">
+    <main ref="rootRef" class="movies-page">
+      <div class="slider">
+        <div ref="trackRef" class="slide-track"></div>
+      </div>
       <div
-        class="movies-cursor-ring__disc"
-        :class="{ 'movies-cursor-ring__disc--compact': ringOverSlide }"
-      />
-    </div>
-  </main>
+        v-if="cursorRingEnabled"
+        v-show="showCursorRing"
+        class="movies-cursor-ring"
+        :style="{ left: `${ringX}px`, top: `${ringY}px` }"
+        aria-hidden="true"
+      >
+        <div
+          class="movies-cursor-ring__disc"
+          :class="{ 'movies-cursor-ring__disc--compact': ringOverSlide }"
+        />
+      </div>
+    </main>
+
+    <StoryScroll />
+  </div>
 </template>
 
 <style scoped>
@@ -434,6 +504,10 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+.movies-page-shell {
+  background-color: #0f0f0f;
 }
 
 .movies-page {
@@ -485,6 +559,11 @@ onBeforeUnmount(() => {
   height: 100svh;
   overflow: hidden;
   user-select: none;
+  cursor: grab;
+}
+
+.slider:active {
+  cursor: grabbing;
 }
 
 .slider :deep(.slide-track) {

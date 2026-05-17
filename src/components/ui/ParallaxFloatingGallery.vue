@@ -1,5 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { homePageConfig } from '../../config/siteContent'
+
+const router = useRouter()
 
 const props = defineProps({
   title: {
@@ -8,7 +12,7 @@ const props = defineProps({
   },
   subtitle: {
     type: String,
-    default: 'Burning · 2018',
+    default: '',
   },
   buttonLabel: {
     type: String,
@@ -28,88 +32,7 @@ const props = defineProps({
   },
 })
 
-const imageItems = [
-  {
-    url: '/home/red.webp',
-    title: 'Home Red',
-    author: 'maoJun',
-    top: '8%',
-    left: '11%',
-    width: 'clamp(4rem, 7vw, 6rem)',
-    height: 'clamp(4rem, 7vw, 6rem)',
-    depth: 0.5,
-  },
-  {
-    url: '/media-musics/p1218345200.webp',
-    title: 'Music Cover 1',
-    author: 'maoJun',
-    top: '10%',
-    left: '32%',
-    width: 'clamp(5rem, 8vw, 7rem)',
-    height: 'clamp(5rem, 8vw, 7rem)',
-    depth: 1,
-  },
-  {
-    url: '/media-musics/s2702527.jpg',
-    title: 'Music Cover 2',
-    author: 'maoJun',
-    top: '2%',
-    left: '53%',
-    width: 'clamp(7rem, 11vw, 10rem)',
-    height: 'clamp(10rem, 15vw, 13rem)',
-    depth: 2,
-  },
-  {
-    url: '/media-movies/p2520095279.jpg',
-    title: 'Movie Still 1',
-    author: 'maoJun',
-    top: '0%',
-    left: '83%',
-    width: 'clamp(6rem, 9vw, 8rem)',
-    height: 'clamp(6rem, 9vw, 8rem)',
-    depth: 1,
-  },
-  {
-    url: '/media-slow/p2561886540.webp',
-    title: 'Movie Still 2',
-    author: 'maoJun',
-    top: '40%',
-    left: '2%',
-    width: 'clamp(7rem, 10vw, 9rem)',
-    height: 'clamp(7rem, 10vw, 9rem)',
-    depth: 1,
-  },
-  {
-    url: '/burning.webp',
-    title: 'Burning Poster',
-    author: 'maoJun',
-    top: '73%',
-    left: '15%',
-    width: 'clamp(9rem, 14vw, 13rem)',
-    height: 'clamp(12rem, 18vw, 16rem)',
-    depth: 4,
-  },
-  {
-    url: '/card1.jpeg',
-    title: 'Card Back 1',
-    author: 'maoJun',
-    top: '80%',
-    left: '50%',
-    width: 'clamp(6rem, 9vw, 8rem)',
-    height: 'clamp(6rem, 9vw, 8rem)',
-    depth: 1,
-  },
-  {
-    url: '/media-musics/s33569302.jpg',
-    title: 'Music Cover 3',
-    author: 'maoJun',
-    top: '70%',
-    left: '77%',
-    width: 'clamp(7rem, 10vw, 9rem)',
-    height: 'clamp(9rem, 14vw, 12rem)',
-    depth: 2,
-  },
-]
+const imageItems = homePageConfig.parallaxFloatingGallery.images
 
 const sectionRef = ref(null)
 const elements = ref([])
@@ -119,6 +42,10 @@ let cleanupMouse = null
 let hasAnimatedIn = false
 
 const sectionStyle = computed(() => ({ minHeight: props.minHeight }))
+
+const handleButtonClick = () => {
+  router.push(homePageConfig.parallaxFloatingGallery.route)
+}
 
 const setElementRef = (el, index) => {
   if (el) {
@@ -201,8 +128,8 @@ onBeforeUnmount(() => {
   <section ref="sectionRef" class="parallax-floating-section" :style="sectionStyle">
     <div class="parallax-floating-center">
       <p class="parallax-floating-title">{{ title }}</p>
-      <p class="parallax-floating-subtitle">{{ subtitle }}</p>
-      <button type="button" class="parallax-floating-button">{{ buttonLabel }}</button>
+      <p v-if="subtitle" class="parallax-floating-subtitle">{{ subtitle }}</p>
+      <button type="button" class="parallax-floating-button" @click="handleButtonClick">{{ buttonLabel }}</button>
     </div>
 
     <div class="parallax-floating-layer" aria-hidden="true">
@@ -232,23 +159,20 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at 50% 50%, rgb(255 255 255 / 0.08) 0%, transparent 32%),
-    linear-gradient(180deg, #020202 0%, #000000 100%);
+  background: #000000;
   isolation: isolate;
 }
 
 .parallax-floating-section::before {
-  content: '';
+  content: none;
+  display: none;
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 20% 18%, rgb(255 255 255 / 0.06) 0, transparent 24%),
-    radial-gradient(circle at 80% 76%, rgb(255 255 255 / 0.04) 0, transparent 22%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
-  background-size: auto, auto, 22px 22px, 22px 22px;
-  opacity: 0.75;
+    linear-gradient(180deg, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 22px 22px, 22px 22px;
+  opacity: 0.72;
   pointer-events: none;
 }
 
@@ -270,7 +194,7 @@ onBeforeUnmount(() => {
   line-height: 0.9;
   color: #ffffff;
   letter-spacing: -0.04em;
-  text-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  text-shadow: none;
 }
 
 .parallax-floating-subtitle {
@@ -292,13 +216,13 @@ onBeforeUnmount(() => {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: transform 0.28s ease, box-shadow 0.28s ease;
-  box-shadow: 0 16px 40px rgb(255 255 255 / 0.18);
+  transition: transform 0.28s ease;
+  box-shadow: none;
 }
 
 .parallax-floating-button:hover {
   transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 22px 48px rgb(255 255 255 / 0.24);
+  box-shadow: none;
 }
 
 .parallax-floating-layer {

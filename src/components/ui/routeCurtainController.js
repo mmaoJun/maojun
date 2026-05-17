@@ -1,5 +1,8 @@
 let api = null
 let readyResolve = null
+let routeContentVisible = true
+const visibilityListeners = new Set()
+const revealStartListeners = new Set()
 const readyPromise = new Promise((resolve) => {
   readyResolve = resolve
 })
@@ -12,6 +15,32 @@ export const registerRouteCurtain = (instance) => {
 const waitForApi = async () => {
   if (api) return api
   return readyPromise
+}
+
+export const setRouteContentVisible = (visible) => {
+  routeContentVisible = visible
+  visibilityListeners.forEach((listener) => listener(routeContentVisible))
+}
+
+export const isRouteContentVisible = () => routeContentVisible
+
+export const subscribeRouteContentVisible = (listener) => {
+  visibilityListeners.add(listener)
+  listener(routeContentVisible)
+  return () => {
+    visibilityListeners.delete(listener)
+  }
+}
+
+export const emitRouteRevealStart = () => {
+  revealStartListeners.forEach((listener) => listener())
+}
+
+export const subscribeRouteRevealStart = (listener) => {
+  revealStartListeners.add(listener)
+  return () => {
+    revealStartListeners.delete(listener)
+  }
 }
 
 export const coverRouteCurtain = async () => {

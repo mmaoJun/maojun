@@ -3,6 +3,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import gsap from 'gsap'
 import { CustomEase } from 'gsap/CustomEase'
 import { SplitText } from 'gsap/SplitText'
+import { aboutPageConfig } from '../config/siteContent'
 
 gsap.registerPlugin(CustomEase, SplitText)
 CustomEase.create('hop', '0.85, 0, 0.15, 1')
@@ -31,7 +32,7 @@ onMounted(async () => {
   const revealTl = gsap.timeline({ delay: 0.5 })
 
   counterTl.to(counter, {
-    value: 100,
+    value: aboutPageConfig.counterEnd,
     duration: 5,
     ease: 'power2.out',
     onUpdate: () => {
@@ -104,15 +105,13 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="hero-images">
-        <div class="img"><img src="/media-musics/p1218345200.webp" alt="" /></div>
-        <div class="img"><img src="/media-musics/s26262544.jpg" alt="" /></div>
-        <div class="img hero-img"><img src="/media-musics/s2702527.jpg" alt="" /></div>
-        <div class="img"><img src="/media-musics/s28297901.jpg" alt="" /></div>
-        <div class="img"><img src="/media-musics/s28361360.jpg" alt="" /></div>
+        <div v-for="(image, index) in aboutPageConfig.images" :key="image" class="img" :class="{ 'hero-img': index === 2 }">
+          <img :src="image" alt="" />
+        </div>
       </div>
 
       <div class="hero-header">
-        <h1>Elara Vandenberg</h1>
+        <h1>{{ aboutPageConfig.heroTitle }}</h1>
       </div>
   </section>
 </template>
@@ -154,7 +153,7 @@ img {
   height: 100svh;
   overflow: hidden;
   font-family: "DM Sans", sans-serif;
-  background: #f7f3ed;
+  background: #ffffff;
 }
 
 .hero-overlay {

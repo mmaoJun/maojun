@@ -14,7 +14,9 @@ import SiteFooter from './components/ui/SiteFooter.vue'
 import RevealTextHero from './components/ui/RevealTextHero.vue'
 import ShiningText from './components/ui/ShiningText.vue'
 import MarqueeCards from './components/ui/MarqueeCards.vue'
+import AnimatedSlideshow from './components/ui/AnimatedSlideshow.vue'
 import RouteCurtain from './components/ui/RouteCurtain.vue'
+import { subscribeRouteContentVisible } from './components/ui/routeCurtainController'
 
 const route = useRoute()
 const router = useRouter()
@@ -48,6 +50,7 @@ const collectionItems = [
 ]
 const [cardBack1, cardBack2, cardBack3] = homeConfig.cardBackImages
 const hitokoto2 = ref('')
+const routeContentVisible = ref(true)
 const homeRoot = ref(null)
 const showLoader = ref(true)
 const loaderDone = ref(false)
@@ -74,6 +77,7 @@ let pendingHomeNavTransition = null
 let pendingHomeNavTargetY = null
 const scrollPositions = new Map()
 const cleanups = []
+let unsubscribeRouteContentVisibility = null
 
 const getDefaultNavWidthPx = () => {
   const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16
@@ -888,6 +892,9 @@ const deactivateHome = () => {
 
 onMounted(async () => {
   gsap.registerPlugin(ScrollTrigger)
+  unsubscribeRouteContentVisibility = subscribeRouteContentVisible((visible) => {
+    routeContentVisible.value = visible
+  })
   heroPoster.value = getCachedHeroFrame() || await captureVideoFirstFrame()
   navEl = document.querySelector('.hero-nav')
   navInitialWidth = getDefaultNavWidthPx()
@@ -950,12 +957,14 @@ watch(isHomePage, async (isHome) => {
 
 onBeforeUnmount(() => {
   deactivateHome()
+  unsubscribeRouteContentVisibility?.()
 })
 </script>
 
 <template>
   <RouteCurtain />
-  <div v-if="showLoader" class="site-loader">
+  <div :style="{ visibility: routeContentVisible ? 'visible' : 'hidden' }">
+    <div v-if="showLoader" class="site-loader">
     <div class="loader-columns loader-side loader-left">
       <div class="loader-head loader-row">
         <p>{{ homeConfig.loader.sideHeading }}</p>
@@ -1030,6 +1039,8 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <AnimatedSlideshow />
+
     <MarqueeCards />
 
     <section class="sticky">
@@ -1052,12 +1063,13 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <ParallaxFloatingGallery title="maoJun" subtitle="Burning · 2018" button-label="about" min-height="100svh" />
+    <ParallaxFloatingGallery title="MAOJUN" button-label="about" min-height="100svh" />
     <SiteFooter :brand-name="footerInfo.brandName" :logo-text="footerInfo.logoText"
       :social-links="footerInfo.socialLinks" :main-links="footerInfo.mainLinks" :legal-links="footerInfo.legalLinks"
       :copyright="footerInfo.copyright" />
   </main>
   <RouterView v-else />
+  </div>
 </template>
 
 <style scoped>
@@ -1496,7 +1508,7 @@ p {
   position: absolute;
   top: 20%;
   left: 50%;
-  transform: translate(-50%, -50%)
+  transform: translate(-50%, -50%);
 }
 
 .sticky-header h1 {
