@@ -3,7 +3,7 @@ export const siteFooter = {
   brandName: 'MAOJUN',
   logoText: 'M',
   socialLinks: [
-    { label: 'GitHub', href: 'https://github.com', icon: 'GitHub', external: true },
+    { label: 'GitHub', href: 'https://github.com/mmaoJun', icon: 'GitHub', external: true },
 
   ],
   mainLinks: [
@@ -49,18 +49,18 @@ export const homePageConfig = {
     title: ['MAO', 'JUN'],
     sideHeading: 'PLAYLIST',
     images: [
-      '/meida-musics/p1218345200.webp',
-      '/meida-musics/s26262544.jpg',
-      '/meida-musics/s2702527.jpg',
-      '/meida-musics/s28297901.jpg',
-      '/meida-musics/s28361360.jpg',
-      '/meida-musics/s28794309.jpg',
-      '/meida-musics/s29465458.jpg',
-      '/meida-musics/s33559919.jpg',
-      '/meida-musics/s33569302.jpg',
-      '/meida-musics/s34371161.jpg',
-      '/meida-musics/s4016142.jpg',
-      '/meida-musics/s4514100.jpg',
+      '/media-musics/p1218345200.webp',
+      '/media-musics/s26262544.jpg',
+      '/media-musics/s2702527.jpg',
+      '/media-musics/s28297901.jpg',
+      '/media-musics/s28361360.jpg',
+      '/media-musics/s28794309.jpg',
+      '/media-musics/s29465458.jpg',
+      '/media-musics/s33559919.jpg',
+      '/media-musics/s33569302.jpg',
+      '/media-musics/s34371161.jpg',
+      '/media-musics/s4016142.jpg',
+      '/media-musics/s4514100.jpg',
 
     ],
     tracks: [
