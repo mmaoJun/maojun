@@ -16,11 +16,20 @@ import ShiningText from './components/ui/ShiningText.vue'
 import MarqueeCards from './components/ui/MarqueeCards.vue'
 import AnimatedSlideshow from './components/ui/AnimatedSlideshow.vue'
 import RouteCurtain from './components/ui/RouteCurtain.vue'
-import { subscribeRouteContentVisible } from './components/ui/routeCurtainController'
+import MenuToggleIcon from './components/ui/MenuToggleIcon.vue'
+import {
+  setRouteCurtainEnabled,
+  subscribeRouteContentVisible,
+  subscribeRouteCurtainEnabled,
+} from './components/ui/routeCurtainController'
 
 const route = useRoute()
 const router = useRouter()
+const ROUTE_TRANSITION_STORAGE_KEY = 'route-transition-animation-enabled'
+const enableRouteTransitionAnimation = true
+const routeTransitionAnimationEnabled = ref(enableRouteTransitionAnimation)
 const isHomePage = computed(() => route.path === '/')
+const isAboutPage = computed(() => route.path === '/about')
 const homeConfig = homePageConfig
 const aboutConfig = aboutPageConfig
 const navLinks = siteNavLinks
@@ -78,6 +87,30 @@ let pendingHomeNavTargetY = null
 const scrollPositions = new Map()
 const cleanups = []
 let unsubscribeRouteContentVisibility = null
+let unsubscribeRouteCurtainEnabled = null
+
+const getInitialRouteTransitionAnimationEnabled = () => {
+  try {
+    const saved = localStorage.getItem(ROUTE_TRANSITION_STORAGE_KEY)
+    if (saved === 'true') return true
+    if (saved === 'false') return false
+  } catch {
+    // ignore storage access errors
+  }
+  return enableRouteTransitionAnimation
+}
+
+const persistRouteTransitionAnimationEnabled = (enabled) => {
+  try {
+    localStorage.setItem(ROUTE_TRANSITION_STORAGE_KEY, String(enabled))
+  } catch {
+    // ignore storage access errors
+  }
+}
+
+const toggleRouteTransitionAnimation = () => {
+  setRouteCurtainEnabled(!routeTransitionAnimationEnabled.value)
+}
 
 const getDefaultNavWidthPx = () => {
   const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16
@@ -892,6 +925,11 @@ const deactivateHome = () => {
 
 onMounted(async () => {
   gsap.registerPlugin(ScrollTrigger)
+  setRouteCurtainEnabled(getInitialRouteTransitionAnimationEnabled())
+  unsubscribeRouteCurtainEnabled = subscribeRouteCurtainEnabled((enabled) => {
+    routeTransitionAnimationEnabled.value = enabled
+    persistRouteTransitionAnimationEnabled(enabled)
+  })
   unsubscribeRouteContentVisibility = subscribeRouteContentVisible((visible) => {
     routeContentVisible.value = visible
   })
@@ -958,6 +996,7 @@ watch(isHomePage, async (isHome) => {
 onBeforeUnmount(() => {
   deactivateHome()
   unsubscribeRouteContentVisibility?.()
+  unsubscribeRouteCurtainEnabled?.()
 })
 </script>
 
@@ -1002,15 +1041,34 @@ onBeforeUnmount(() => {
   </div>
 
   <GlassFilter />
-  <LiquidGlassNav v-show="!showLoader">
-    <a class="hero-logo" href="/" @click="handleGoHome">{{ homeConfig.brand }}</a>
-    <nav class="hero-links">
-      <a v-for="link in navLinks" :key="link.href" :href="link.href"
-        @click.prevent="navigateWithNavTransition(link.href)">{{ link.label }}</a>
-    </nav>
-    <LiquidGlassButton class="hero-cta" @click="navigateWithNavTransition('/about')">{{ homeConfig.aboutLabel }}
-    </LiquidGlassButton>
-  </LiquidGlassNav>
+  <div v-show="!showLoader" class="hero-nav-wrap">
+    <LiquidGlassNav>
+      <a class="hero-logo" href="/" @click="handleGoHome">{{ homeConfig.brand }}</a>
+      <nav class="hero-links">
+        <a v-for="link in navLinks" :key="link.href" :href="link.href"
+          @click.prevent="navigateWithNavTransition(link.href)">{{ link.label }}</a>
+      </nav>
+      <LiquidGlassButton class="hero-cta" @click="navigateWithNavTransition('/about')">{{ homeConfig.aboutLabel }}
+      </LiquidGlassButton>
+    </LiquidGlassNav>
+
+    <button
+      v-if="isAboutPage"
+      type="button"
+      class="route-transition-toggle"
+      :class="{ 'route-transition-toggle--off': !routeTransitionAnimationEnabled }"
+      @click="toggleRouteTransitionAnimation"
+      :aria-pressed="routeTransitionAnimationEnabled"
+      :aria-label="routeTransitionAnimationEnabled ? 'Disable route transition animation' : 'Enable route transition animation'"
+    >
+      <MenuToggleIcon
+        :open="!routeTransitionAnimationEnabled"
+        :size="30"
+        :duration="500"
+        class="route-transition-toggle__icon"
+      />
+    </button>
+  </div>
 
   <main v-if="isHomePage" ref="homeRoot">
     <section class="hero">
@@ -1074,6 +1132,76 @@ onBeforeUnmount(() => {
 
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap");
+
+.hero-nav-wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  pointer-events: none;
+}
+
+.hero-nav-wrap :deep(.liquid-glass-nav),
+.hero-nav-wrap :deep(.hero-nav) {
+  pointer-events: auto;
+}
+
+.route-transition-toggle {
+  position: fixed;
+  top: 47.6vh;
+  left: 49.1%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  min-height: 3rem;
+  padding: 0.55rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  color: #22c55e;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.24s ease, color 0.24s ease, opacity 0.24s ease;
+}
+
+.route-transition-toggle--off {
+  color: #ef4444;
+}
+
+.route-transition-toggle:hover {
+  opacity: 0.86;
+}
+
+.route-transition-toggle:active {
+  transform: translateX(-50%) translateY(1px);
+}
+
+.route-transition-toggle__icon {
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1000px) {
+  .route-transition-toggle {
+    top: 13svh;
+    left: 50%;
+    right: auto;
+    min-height: 2.7rem;
+    padding: 0.45rem;
+  }
+
+  .route-transition-toggle:active {
+    transform: translateX(-50%) translateY(1px);
+  }
+}
 
 .site-loader {
   position: fixed;

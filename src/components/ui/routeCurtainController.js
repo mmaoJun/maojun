@@ -1,8 +1,10 @@
 let api = null
 let readyResolve = null
 let routeContentVisible = true
+let routeCurtainEnabled = true
 const visibilityListeners = new Set()
 const revealStartListeners = new Set()
+const routeCurtainEnabledListeners = new Set()
 const readyPromise = new Promise((resolve) => {
   readyResolve = resolve
 })
@@ -29,6 +31,21 @@ export const subscribeRouteContentVisible = (listener) => {
   listener(routeContentVisible)
   return () => {
     visibilityListeners.delete(listener)
+  }
+}
+
+export const setRouteCurtainEnabled = (enabled) => {
+  routeCurtainEnabled = enabled
+  routeCurtainEnabledListeners.forEach((listener) => listener(routeCurtainEnabled))
+}
+
+export const isRouteCurtainEnabled = () => routeCurtainEnabled
+
+export const subscribeRouteCurtainEnabled = (listener) => {
+  routeCurtainEnabledListeners.add(listener)
+  listener(routeCurtainEnabled)
+  return () => {
+    routeCurtainEnabledListeners.delete(listener)
   }
 }
 

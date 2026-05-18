@@ -8,6 +8,7 @@ import Movies from '../components/movies.vue'
 import {
   coverRouteCurtain,
   emitRouteRevealStart,
+  isRouteCurtainEnabled,
   revealRouteCurtain,
   setRouteContentVisible,
 } from '../components/ui/routeCurtainController'
@@ -30,6 +31,12 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
+  if (!isRouteCurtainEnabled()) {
+    setRouteContentVisible(true)
+    next()
+    return
+  }
+
   await coverRouteCurtain()
   setRouteContentVisible(true)
   next()
@@ -41,7 +48,13 @@ router.afterEach(async () => {
     isFirstNavigation = false
     return
   }
+
   setRouteContentVisible(true)
+
+  if (!isRouteCurtainEnabled()) {
+    return
+  }
+
   emitRouteRevealStart()
   await revealRouteCurtain()
 })
