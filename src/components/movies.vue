@@ -70,6 +70,8 @@ const state = {
 }
 
 let rafId = 0
+let visibilityObserver = null
+let isSliderInView = true
 let unsubscribeRevealStart = null
 const cleanups = []
 
@@ -96,6 +98,8 @@ function createSlideElement(index) {
   const slideDataIndex = index % totalSlideCount
   img.src = sliderData[slideDataIndex].img
   img.alt = sliderData[slideDataIndex].title
+  img.decoding = 'async'
+  img.loading = index < totalSlideCount ? 'eager' : 'lazy'
 
   const overlay = document.createElement('div')
   overlay.className = 'slide-overlay'
@@ -123,6 +127,7 @@ function createSlideElement(index) {
   slide.appendChild(year)
   slide.appendChild(centerTitle)
   imageContainer.appendChild(img)
+  slide._imageEl = img
   slide.appendChild(imageContainer)
   slide.appendChild(overlay)
 
@@ -196,7 +201,7 @@ function updateParallax() {
   const imageScale = 7 - (4.82 * easedEntrance)
 
   state.slides.forEach((slide) => {
-    const img = slide.querySelector('img')
+    const img = slide._imageEl
     if (!img) return
 
     const slideRect = slide.getBoundingClientRect()
@@ -206,8 +211,20 @@ function updateParallax() {
     const distanceFromCenter = slideCenter - viewportCenter
     const parallaxOffset = distanceFromCenter * -0.25
 
-    img.style.transform = `translateX(${parallaxOffset}px) scale(${imageScale})`
+    img.style.transform = `translate3d(${parallaxOffset}px, 0, 0) scale(${imageScale})`
   })
+}
+
+function cancelAnimationLoop() {
+  if (!rafId) return
+  cancelAnimationFrame(rafId)
+  rafId = 0
+}
+
+function startAnimationLoop() {
+  if (rafId || !isSliderInView || document.hidden) return
+  state.lastFrameAt = performance.now()
+  rafId = requestAnimationFrame(animate)
 }
 
 function updateMovingState() {
@@ -272,6 +289,12 @@ function animate() {
   updateSlidePositions()
   updateParallax()
   stepCursorRingFollow()
+
+  if (!isSliderInView || document.hidden) {
+    rafId = 0
+    return
+  }
+
   rafId = requestAnimationFrame(animate)
 }
 
@@ -352,6 +375,15 @@ function handleSlideMouseLeave() {
 
 function handleResize() {
   initializeSlides()
+  startAnimationLoop()
+}
+
+function handleDocumentVisibilityChange() {
+  if (document.hidden) {
+    cancelAnimationLoop()
+    return
+  }
+  startAnimationLoop()
 }
 
 function initializeEventListeners() {
@@ -383,7 +415,7 @@ function initializeSlider() {
   initializeSlides()
   initializeEventListeners()
   resetEntrySlide()
-  animate()
+  startAnimationLoop()
 }
 
 function stepCursorRingFollow() {
@@ -440,10 +472,12 @@ function initCursorRing() {
   window.addEventListener('mousemove', onWindowMouseMoveForRing, { passive: true })
   window.addEventListener('blur', hideCursorRing)
   window.addEventListener('mouseout', onWindowMouseOutForRing, { passive: true })
+  document.addEventListener('visibilitychange', handleDocumentVisibilityChange)
   cleanups.push(() => {
     window.removeEventListener('mousemove', onWindowMouseMoveForRing)
     window.removeEventListener('blur', hideCursorRing)
     window.removeEventListener('mouseout', onWindowMouseOutForRing)
+    document.removeEventListener('visibilitychange', handleDocumentVisibilityChange)
   })
 }
 
@@ -454,18 +488,37 @@ function onWindowMouseOutForRing(event) {
   }
 }
 
+function initVisibilityObserver() {
+  if (!rootRef.value || typeof IntersectionObserver === 'undefined') return
+
+  visibilityObserver = new IntersectionObserver((entries) => {
+    const [entry] = entries
+    isSliderInView = Boolean(entry?.isIntersecting)
+    if (isSliderInView) {
+      startAnimationLoop()
+      return
+    }
+    cancelAnimationLoop()
+  }, { threshold: 0.08 })
+
+  visibilityObserver.observe(rootRef.value)
+}
+
 onMounted(async () => {
   await nextTick()
   initializeSlider()
   initCursorRing()
+  initVisibilityObserver()
   unsubscribeRevealStart = subscribeRouteRevealStart(() => {
     if (!rootRef.value?.isConnected) return
     resetEntrySlide()
+    startAnimationLoop()
   })
 })
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(rafId)
+  cancelAnimationLoop()
+  visibilityObserver?.disconnect()
   unsubscribeRevealStart?.()
   cleanups.forEach((fn) => fn())
   document.documentElement.style.removeProperty('--slider-moving')

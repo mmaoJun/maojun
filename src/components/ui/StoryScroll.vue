@@ -15,10 +15,10 @@ const setSectionRef = (el, index) => {
   if (el) sectionRefs.value[index] = el
 }
 
-const childCount = () => sections.length
-
 let triggers = []
 let mediaQuery = null
+let handleMotionPreferenceChange = null
+
 const cleanupTriggers = () => {
   triggers.forEach((trigger) => trigger.kill())
   triggers = []
@@ -26,11 +26,11 @@ const cleanupTriggers = () => {
 
 onMounted(() => {
   mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-  const updateMotionPreference = () => {
+  handleMotionPreferenceChange = () => {
     reducedMotion.value = mediaQuery.matches
   }
-  updateMotionPreference()
-  mediaQuery.addEventListener('change', updateMotionPreference)
+  handleMotionPreferenceChange()
+  mediaQuery.addEventListener('change', handleMotionPreferenceChange)
 
   if (!rootRef.value || reducedMotion.value) return
 
@@ -44,15 +44,16 @@ onMounted(() => {
     if (!inner) return
 
     if (i > 0) {
-      gsap.set(inner, { rotation: 30, transformOrigin: 'bottom left' })
+      gsap.set(inner, { rotation: 18, transformOrigin: 'bottom left', force3D: true })
       const tween = gsap.to(inner, {
         rotation: 0,
         ease: 'none',
+        force3D: true,
         scrollTrigger: {
           trigger: section,
           start: 'top bottom',
           end: 'top 25%',
-          scrub: true,
+          scrub: 0.65,
         },
       })
       if (tween.scrollTrigger) triggers.push(tween.scrollTrigger)
@@ -76,7 +77,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cleanupTriggers()
-  mediaQuery?.removeEventListener?.('change', () => {})
+  mediaQuery?.removeEventListener?.('change', handleMotionPreferenceChange)
 })
 </script>
 
@@ -161,6 +162,7 @@ onBeforeUnmount(() => {
   padding: clamp(2rem, 8vw, 4vw) 4vw 4vw;
   transform-origin: bottom left;
   will-change: transform;
+  backface-visibility: hidden;
 }
 
 .story-eyebrow {

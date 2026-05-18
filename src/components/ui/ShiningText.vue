@@ -1,14 +1,33 @@
 <script setup>
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+
 defineProps({
   text: {
     type: String,
     default: '',
   },
 })
+
+const prefersReducedMotion = ref(false)
+let motionMediaQuery = null
+let handleMotionChange = null
+
+onMounted(() => {
+  motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  handleMotionChange = () => {
+    prefersReducedMotion.value = motionMediaQuery.matches
+  }
+  handleMotionChange()
+  motionMediaQuery.addEventListener('change', handleMotionChange)
+})
+
+onBeforeUnmount(() => {
+  motionMediaQuery?.removeEventListener?.('change', handleMotionChange)
+})
 </script>
 
 <template>
-  <span class="shining-text">{{ text }}</span>
+  <span class="shining-text" :class="{ 'shining-text--static': prefersReducedMotion }">{{ text }}</span>
 </template>
 
 <style scoped>
@@ -20,7 +39,12 @@ defineProps({
   color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
-  animation: shineSweep 2s linear infinite;
+  animation: shineSweep 2.8s linear infinite;
+}
+
+.shining-text--static {
+  animation: none;
+  background-position: 50% 0;
 }
 
 @keyframes shineSweep {

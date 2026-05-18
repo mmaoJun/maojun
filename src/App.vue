@@ -78,6 +78,8 @@ let pendingHomeNavTargetY = null
 const scrollPositions = new Map()
 const cleanups = []
 let unsubscribeRouteContentVisibility = null
+let reducedMotionMediaQuery = null
+let handleReducedMotionChange = null
 
 const getDefaultNavWidthPx = () => {
   const rootFontSize = Number.parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16
@@ -179,15 +181,23 @@ const captureVideoFirstFrame = () => new Promise((resolve) => {
   video.preload = 'auto'
   video.crossOrigin = 'anonymous'
 
+  let settled = false
+
   const cleanup = () => {
     video.pause()
     video.removeAttribute('src')
     video.load()
   }
 
-  const fallback = () => {
+  const finalize = (frame) => {
+    if (settled) return
+    settled = true
     cleanup()
-    resolve(heroFallbackPoster)
+    resolve(frame)
+  }
+
+  const fallback = () => {
+    finalize(heroFallbackPoster)
   }
 
   const drawFrame = () => {
@@ -205,8 +215,7 @@ const captureVideoFirstFrame = () => new Promise((resolve) => {
       ctx.drawImage(video, 0, 0, width, height)
       const frame = canvas.toDataURL('image/jpeg', 0.92)
       setCachedHeroFrame(frame)
-      cleanup()
-      resolve(frame)
+      finalize(frame)
     } catch {
       fallback()
     }
@@ -353,13 +362,13 @@ const playSiteLoader = async () => {
       .to(cells, {
         opacity: 1,
         y: 0,
-        filter: 'brightness(0.92)',
+        filter: 'brightness(0.85)',
         duration: 0.5,
         stagger: (idx) => Math.floor(idx / 3) * 0.07 + (idx % 3) * 0.024,
       }, '<0.03')
       .add(() => {
         randomizeTiles(false)
-        swapTimer = window.setInterval(() => randomizeTiles(false), 90)
+        swapTimer = window.setInterval(() => randomizeTiles(false), 180)
       }, '>-0.02')
       .to(leftTextNodes, {
         color: '#f2f2f2',
@@ -372,7 +381,7 @@ const playSiteLoader = async () => {
         stagger: 0.03,
       }, '<')
       .to(cells, {
-        filter: 'brightness(1)',
+        filter: 'brightness(0.96)',
         duration: 0.34,
         stagger: (idx) => Math.floor(idx / 3) * 0.055 + (idx % 3) * 0.018,
       }, '<')
@@ -892,6 +901,12 @@ const deactivateHome = () => {
 
 onMounted(async () => {
   gsap.registerPlugin(ScrollTrigger)
+  reducedMotionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  handleReducedMotionChange = () => {
+    document.documentElement.classList.toggle('reduce-motion', reducedMotionMediaQuery.matches)
+  }
+  handleReducedMotionChange()
+  reducedMotionMediaQuery.addEventListener('change', handleReducedMotionChange)
   unsubscribeRouteContentVisibility = subscribeRouteContentVisible((visible) => {
     routeContentVisible.value = visible
   })
@@ -958,6 +973,8 @@ watch(isHomePage, async (isHome) => {
 onBeforeUnmount(() => {
   deactivateHome()
   unsubscribeRouteContentVisibility?.()
+  reducedMotionMediaQuery?.removeEventListener?.('change', handleReducedMotionChange)
+  document.documentElement.classList.remove('reduce-motion')
 })
 </script>
 
@@ -1254,6 +1271,19 @@ img {
   object-fit: cover
 }
 
+:global(html.reduce-motion),
+:global(html.reduce-motion *) {
+  scroll-behavior: auto !important;
+}
+
+:global(html.reduce-motion *),
+:global(html.reduce-motion *::before),
+:global(html.reduce-motion *::after) {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+}
+
 section {
   position: relative;
   width: 100%;
@@ -1348,10 +1378,10 @@ p {
   z-index: 1;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 180px 180px;
-  mix-blend-mode: soft-light;
-  opacity: .16;
-  filter: contrast(135%) brightness(108%);
-  animation: filmGrainMove 1.2s steps(4, end) infinite, filmGrainFlicker 2.4s ease-in-out infinite alternate
+  mix-blend-mode: normal;
+  opacity: .08;
+  filter: contrast(118%) brightness(104%);
+  animation: filmGrainMove 1.8s steps(3, end) infinite, filmGrainFlicker 3.2s ease-in-out infinite alternate
 }
 
 .hero-frame::after {

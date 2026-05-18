@@ -1,4 +1,5 @@
 <script setup>
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 defineProps({
   type: {
     type: String,
@@ -7,12 +8,34 @@ defineProps({
 })
 
 defineEmits(['click'])
+
+const prefersReducedMotion = ref(false)
+let motionMediaQuery = null
+let handleMotionChange = null
+
+const buttonClass = computed(() => ({
+  'liquid-glass-btn--reduced': prefersReducedMotion.value,
+}))
+
+onMounted(() => {
+  motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  handleMotionChange = () => {
+    prefersReducedMotion.value = motionMediaQuery.matches
+  }
+  handleMotionChange()
+  motionMediaQuery.addEventListener('change', handleMotionChange)
+})
+
+onBeforeUnmount(() => {
+  motionMediaQuery?.removeEventListener?.('change', handleMotionChange)
+})
 </script>
 
 <template>
   <button
     :type="type"
     class="liquid-glass-btn"
+    :class="buttonClass"
     v-bind="$attrs"
     @click="$emit('click', $event)"
   >
@@ -41,13 +64,13 @@ defineEmits(['click'])
   cursor: pointer;
   background: transparent;
   overflow: hidden;
-  transition: transform 0.3s ease, filter 0.2s ease;
+  transition: transform 0.22s ease, filter 0.18s ease;
   outline: none;
 }
 
 .liquid-glass-btn:hover {
-  transform: scale(1.04);
-  filter: brightness(1.08);
+  transform: scale(1.02);
+  filter: brightness(1.05);
 }
 
 .liquid-glass-btn:active {
@@ -74,9 +97,22 @@ defineEmits(['click'])
   overflow: hidden;
   background: rgb(241 245 249 / 80%);
   border: 1px solid rgb(15 23 42 / 12%);
-  backdrop-filter: url('#container-glass') blur(14px) saturate(130%);
-  -webkit-backdrop-filter: url('#container-glass') blur(14px) saturate(130%);
+  backdrop-filter: url('#container-glass') blur(10px) saturate(122%);
+  -webkit-backdrop-filter: url('#container-glass') blur(10px) saturate(122%);
   pointer-events: none;
+}
+
+.liquid-glass-btn--reduced,
+.liquid-glass-btn--reduced:hover,
+.liquid-glass-btn--reduced:active {
+  transform: none;
+  filter: none;
+}
+
+.liquid-glass-btn--reduced .liquid-glass-btn__filter {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgb(241 245 249 / 94%);
 }
 
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {

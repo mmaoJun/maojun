@@ -10,7 +10,146 @@ CustomEase.create('hop', '0.85, 0, 0.15, 1')
 
 const pageRoot = ref(null)
 const counterValue = ref(0)
+const prefersReducedMotion = ref(false)
+const isMobile = ref(false)
 let splitInstance = null
+let counterTl = null
+let revealTl = null
+let motionMediaQuery = null
+let handleMotionChange = null
+let resizeHandler = null
+
+const updateViewportFlags = () => {
+  isMobile.value = window.innerWidth < 900
+}
+
+const cleanupAnimations = () => {
+  counterTl?.kill()
+  revealTl?.kill()
+  counterTl = null
+  revealTl = null
+}
+
+const applyStaticState = () => {
+  if (!pageRoot.value) return
+
+  const images = pageRoot.value.querySelectorAll('.img')
+  const heroImages = pageRoot.value.querySelector('.hero-images')
+  const overlay = pageRoot.value.querySelector('.hero-overlay')
+
+  gsap.set(images, {
+    clearProps: 'all',
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    clipPath: 'none',
+  })
+  gsap.set(heroImages, { clearProps: 'all', gap: isMobile.value ? '2.5vw' : '1vw' })
+  gsap.set(overlay, { clearProps: 'all', clipPath: 'none', opacity: prefersReducedMotion.value ? 0 : 1 })
+  if (splitInstance?.words) {
+    gsap.set(splitInstance.words, { y: 0, clearProps: 'transform' })
+  }
+  counterValue.value = aboutPageConfig.counterEnd
+}
+
+const runAnimations = () => {
+  if (!pageRoot.value) return
+
+  cleanupAnimations()
+
+  if (prefersReducedMotion.value) {
+    applyStaticState()
+    return
+  }
+
+  const counter = { value: 0 }
+  const imageRevealDuration = isMobile.value ? 0.65 : 1
+  const overlayDuration = isMobile.value ? 0.72 : 1
+  const stagger = isMobile.value ? 0.03 : 0.05
+
+  counterValue.value = 0
+
+  counterTl = gsap.timeline({ delay: 0.25 })
+  revealTl = gsap.timeline({ delay: 0.25 })
+
+  counterTl.to(counter, {
+    value: aboutPageConfig.counterEnd,
+    duration: isMobile.value ? 2.6 : 5,
+    ease: 'power2.out',
+    onUpdate: () => {
+      counterValue.value = Math.floor(counter.value)
+    },
+  })
+
+  revealTl
+    .to('.img', {
+      y: 0,
+      opacity: 1,
+      stagger,
+      duration: imageRevealDuration,
+      ease: 'hop',
+    })
+    .to('.hero-images', {
+      gap: isMobile.value ? '2vw' : '0.75vw',
+      duration: imageRevealDuration,
+      delay: isMobile.value ? 0.2 : 0.5,
+      ease: 'hop',
+    })
+    .to(
+      '.img',
+      {
+        scale: 1,
+        duration: imageRevealDuration,
+        ease: 'hop',
+      },
+      '<',
+    )
+
+  if (!isMobile.value) {
+    revealTl
+      .to('.img:not(.hero-img)', {
+        clipPath: 'polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)',
+        duration: 0.9,
+        stagger: 0.08,
+        ease: 'hop',
+      })
+      .to('.hero-img', {
+        scale: 2,
+        duration: 0.9,
+        ease: 'hop',
+      }, '<0.08')
+      .to('.hero-overlay', {
+        clipPath: 'polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)',
+        duration: overlayDuration,
+        ease: 'hop',
+      })
+  } else {
+    revealTl
+      .to('.hero-img', {
+        scale: 1.18,
+        duration: 0.7,
+        ease: 'hop',
+      })
+      .to('.hero-overlay', {
+        opacity: 0,
+        duration: 0.45,
+        ease: 'power2.out',
+      }, '<0.15')
+  }
+
+  if (splitInstance?.words?.length) {
+    revealTl.to(
+      splitInstance.words,
+      {
+        y: '0',
+        duration: isMobile.value ? 0.55 : 0.75,
+        stagger: isMobile.value ? 0.06 : 0.1,
+        ease: 'power3.out',
+      },
+      '-=0.35',
+    )
+  }
+}
 
 onMounted(async () => {
   await nextTick()
@@ -26,78 +165,39 @@ onMounted(async () => {
     wordsClass: 'word',
   })
 
-  const counter = { value: 0 }
+  motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  handleMotionChange = () => {
+    prefersReducedMotion.value = motionMediaQuery.matches
+    runAnimations()
+  }
+  motionMediaQuery.addEventListener('change', handleMotionChange)
 
-  const counterTl = gsap.timeline({ delay: 0.5 })
-  const revealTl = gsap.timeline({ delay: 0.5 })
+  resizeHandler = () => {
+    const previous = isMobile.value
+    updateViewportFlags()
+    if (previous !== isMobile.value) {
+      runAnimations()
+    }
+  }
 
-  counterTl.to(counter, {
-    value: aboutPageConfig.counterEnd,
-    duration: 5,
-    ease: 'power2.out',
-    onUpdate: () => {
-      counterValue.value = Math.floor(counter.value)
-    },
-  })
-
-  revealTl
-    .to('.img', {
-      y: 0,
-      opacity: 1,
-      stagger: 0.05,
-      duration: 1,
-      ease: 'hop',
-    })
-    .to('.hero-images', {
-      gap: '0.75vw',
-      duration: 1,
-      delay: 0.5,
-      ease: 'hop',
-    })
-    .to(
-      '.img',
-      {
-        scale: 1,
-        duration: 1,
-        ease: 'hop',
-      },
-      '<',
-    )
-    .to('.img:not(.hero-img)', {
-      clipPath: 'polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)',
-      duration: 1,
-      stagger: 0.1,
-      ease: 'hop',
-    })
-    .to('.hero-img', {
-      scale: 2,
-      duration: 1,
-      ease: 'hop',
-    })
-    .to('.hero-overlay', {
-      clipPath: 'polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)',
-      duration: 1,
-      ease: 'hop',
-    })
-    .to(
-      splitInstance.words,
-      {
-        y: '0',
-        duration: 0.75,
-        stagger: 0.1,
-        ease: 'power3.out',
-      },
-      '-=0.5',
-    )
+  updateViewportFlags()
+  prefersReducedMotion.value = motionMediaQuery.matches
+  window.addEventListener('resize', resizeHandler, { passive: true })
+  runAnimations()
 })
 
 onBeforeUnmount(() => {
+  cleanupAnimations()
   splitInstance?.revert()
+  motionMediaQuery?.removeEventListener?.('change', handleMotionChange)
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler)
+  }
 })
 </script>
 
 <template>
-  <section ref="pageRoot" class="hero">
+  <section ref="pageRoot" class="hero" :class="{ 'hero--reduced': prefersReducedMotion, 'hero--mobile': isMobile }">
       <div class="hero-overlay">
         <div class="counter">
           <h1>{{ counterValue }}%</h1>
@@ -106,7 +206,7 @@ onBeforeUnmount(() => {
 
       <div class="hero-images">
         <div v-for="(image, index) in aboutPageConfig.images" :key="image" class="img" :class="{ 'hero-img': index === 2 }">
-          <img :src="image" alt="" />
+          <img :src="image" alt="" loading="lazy" decoding="async" />
         </div>
       </div>
 
@@ -162,7 +262,7 @@ img {
   height: 100svh;
   background-color: #0f0f0f;
   clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
-  will-change: clip-path;
+  will-change: clip-path, opacity;
   z-index: 0;
 }
 
@@ -218,6 +318,21 @@ img {
 :deep(.word) {
   transform: translateY(100%);
   will-change: transform;
+}
+
+.hero--reduced .hero-overlay {
+  clip-path: none;
+  opacity: 0;
+}
+
+.hero--reduced .hero-images .img {
+  clip-path: none;
+  transform: none;
+  opacity: 1;
+}
+
+.hero--mobile .hero-images .img {
+  will-change: transform, opacity;
 }
 
 @media (max-width: 1000px) {
