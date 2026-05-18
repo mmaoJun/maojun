@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { subscribeRouteRevealStart } from './ui/routeCurtainController'
 import StoryScroll from './ui/StoryScroll.vue'
 import { moviesPageConfig } from '../config/siteContent'
@@ -8,6 +8,11 @@ const sliderData = moviesPageConfig.sliderItems
 
 const rootRef = ref(null)
 const trackRef = ref(null)
+const activeSlideIndex = ref(0)
+
+const totalMoviesLabel = computed(() => String(totalSlideCount).padStart(2, '0'))
+const activeMovie = computed(() => sliderData[activeSlideIndex.value] ?? sliderData[0])
+const activeMovieIndexLabel = computed(() => String(activeSlideIndex.value + 1).padStart(2, '0'))
 
 /** 仅精细指针设备显示自定义圆球（不替代系统光标）；pointer 为光标，ring 为滞后追赶 */
 const cursorRingEnabled = ref(false)
@@ -28,13 +33,9 @@ const RING_FOLLOW = {
 }
 
 const config = {
-  SCROLL_SPEED: 1.75,
-  LERP_FACTOR: 0.05,
-  MAX_VELOCITY: 150,
   ENTRANCE_DURATION: 1200,
-  ENTRY_SLIDE_DURATION: 5000,
-  ENTRY_START_SPEED: 15.5,
-  ENTRY_DRIFT_SPEED: 0.42,
+  ENTRY_DRIFT_SPEED: 0.2,
+  ACTIVE_SLIDE_UPDATE_INTERVAL: 90,
   DRAG_LERP: 0.22,
   RELEASE_LERP: 0.12,
   HOVER_DECEL: 0.085,
@@ -62,16 +63,13 @@ const state = {
   isMobile: false,
   entranceProgress: 0,
   entranceStartAt: 0,
-  entrySlideActive: false,
-  entrySlideSpeed: 0,
   autoSpeed: 0,
   renderedSpeed: 0,
   lastFrameAt: 0,
+  lastActiveSlideUpdateAt: 0,
 }
 
 let rafId = 0
-let visibilityObserver = null
-let isSliderInView = true
 let unsubscribeRevealStart = null
 const cleanups = []
 
@@ -96,38 +94,44 @@ function createSlideElement(index) {
 
   const img = document.createElement('img')
   const slideDataIndex = index % totalSlideCount
-  img.src = sliderData[slideDataIndex].img
-  img.alt = sliderData[slideDataIndex].title
+  const slideData = sliderData[slideDataIndex]
+  slide.dataset.movieIndex = String(slideDataIndex)
+  img.src = slideData.img
+  img.alt = slideData.title
+  img.loading = 'lazy'
   img.decoding = 'async'
-  img.loading = index < totalSlideCount ? 'eager' : 'lazy'
 
   const overlay = document.createElement('div')
   overlay.className = 'slide-overlay'
 
   const year = document.createElement('p')
   year.className = 'project-year'
-  year.textContent = sliderData[slideDataIndex].year
+  year.textContent = slideData.year
 
   const centerTitle = document.createElement('p')
   centerTitle.className = 'project-title-center'
-  centerTitle.textContent = sliderData[slideDataIndex].title
+  centerTitle.textContent = slideData.title
 
   const title = document.createElement('p')
   title.className = 'project-title'
-  title.textContent = sliderData[slideDataIndex].title
+  title.textContent = slideData.title
+
+  const detail = document.createElement('p')
+  detail.className = 'project-detail'
+  detail.textContent = `${String(slideDataIndex + 1).padStart(2, '0')} / ${String(totalSlideCount).padStart(2, '0')}`
 
   slide.addEventListener('click', (event) => {
     event.preventDefault()
     if (state.dragDistance < 10 && !state.hasActuallyDragged) {
-      window.location.href = sliderData[slideDataIndex].url
+      window.open(slideData.url, '_blank', 'noopener,noreferrer')
     }
   })
 
-  overlay.appendChild(title)
   slide.appendChild(year)
   slide.appendChild(centerTitle)
+  overlay.appendChild(title)
+  overlay.appendChild(detail)
   imageContainer.appendChild(img)
-  slide._imageEl = img
   slide.appendChild(imageContainer)
   slide.appendChild(overlay)
 
@@ -142,10 +146,8 @@ function resetEntrySlide() {
   state.entranceProgress = 0
   state.entranceStartAt = performance.now()
   state.lastFrameAt = state.entranceStartAt
-  state.entrySlideSpeed = config.ENTRY_START_SPEED
   state.autoSpeed = config.ENTRY_DRIFT_SPEED
-  state.renderedSpeed = config.ENTRY_START_SPEED
-  state.entrySlideActive = true
+  state.renderedSpeed = config.ENTRY_DRIFT_SPEED
   document.documentElement.style.setProperty('--movies-card-entrance-top-inset', '90%')
 }
 
@@ -201,7 +203,7 @@ function updateParallax() {
   const imageScale = 7 - (4.82 * easedEntrance)
 
   state.slides.forEach((slide) => {
-    const img = slide._imageEl
+    const img = slide.querySelector('img')
     if (!img) return
 
     const slideRect = slide.getBoundingClientRect()
@@ -211,20 +213,8 @@ function updateParallax() {
     const distanceFromCenter = slideCenter - viewportCenter
     const parallaxOffset = distanceFromCenter * -0.25
 
-    img.style.transform = `translate3d(${parallaxOffset}px, 0, 0) scale(${imageScale})`
+    img.style.transform = `translateX(${parallaxOffset}px) scale(${imageScale})`
   })
-}
-
-function cancelAnimationLoop() {
-  if (!rafId) return
-  cancelAnimationFrame(rafId)
-  rafId = 0
-}
-
-function startAnimationLoop() {
-  if (rafId || !isSliderInView || document.hidden) return
-  state.lastFrameAt = performance.now()
-  rafId = requestAnimationFrame(animate)
 }
 
 function updateMovingState() {
@@ -251,6 +241,36 @@ function updateEntranceAnimation() {
   document.documentElement.style.setProperty('--movies-card-entrance-top-inset', `${topInset.toFixed(2)}%`)
 }
 
+function updateActiveSlide(force = false) {
+  if (!state.slides.length) return
+
+  const now = performance.now()
+  if (!force && now - state.lastActiveSlideUpdateAt < config.ACTIVE_SLIDE_UPDATE_INTERVAL) {
+    return
+  }
+
+  state.lastActiveSlideUpdateAt = now
+
+  const viewportCenter = window.innerWidth / 2
+  let bestIndex = activeSlideIndex.value
+  let minDistance = Number.POSITIVE_INFINITY
+
+  state.slides.forEach((slide) => {
+    const rect = slide.getBoundingClientRect()
+    if (rect.right < 0 || rect.left > window.innerWidth) return
+
+    const slideCenter = rect.left + rect.width / 2
+    const distance = Math.abs(slideCenter - viewportCenter)
+
+    if (distance < minDistance) {
+      minDistance = distance
+      bestIndex = Number.parseInt(slide.dataset.movieIndex || '0', 10)
+    }
+  })
+
+  activeSlideIndex.value = Number.isNaN(bestIndex) ? 0 : bestIndex
+}
+
 function animate() {
   const now = performance.now()
   const deltaMs = state.lastFrameAt ? (now - state.lastFrameAt) : 16.67
@@ -258,49 +278,27 @@ function animate() {
 
   updateEntranceAnimation()
 
-  if (state.entrySlideActive) {
-    const elapsed = now - state.entranceStartAt
-    const rawProgress = Math.min(elapsed / config.ENTRY_SLIDE_DURATION, 1)
-    const easedProgress = 1 - ((1 - rawProgress) ** 4)
-    state.entrySlideSpeed = config.ENTRY_START_SPEED + ((config.ENTRY_DRIFT_SPEED - config.ENTRY_START_SPEED) * easedProgress)
-    state.autoSpeed = state.entrySlideSpeed
-    state.renderedSpeed = state.entrySlideSpeed
-    state.targetX -= state.renderedSpeed * deltaMs
-    state.currentX += (state.targetX - state.currentX) * config.RELEASE_LERP
-
-    if (rawProgress >= 1) {
-      state.entrySlideActive = false
-      state.entrySlideSpeed = config.ENTRY_DRIFT_SPEED
-      state.autoSpeed = config.ENTRY_DRIFT_SPEED
-      state.renderedSpeed = config.ENTRY_DRIFT_SPEED
-    }
-  } else if (state.isDragging) {
+  if (state.isDragging) {
     state.currentX += (state.targetX - state.currentX) * config.DRAG_LERP
   } else {
     state.autoSpeed = config.ENTRY_DRIFT_SPEED
     const targetSpeed = state.hoveredSlideCount > 0 ? 0 : state.autoSpeed
     const speedLerp = state.hoveredSlideCount > 0 ? config.HOVER_DECEL : config.HOVER_ACCEL
     state.renderedSpeed += (targetSpeed - state.renderedSpeed) * speedLerp
-    state.targetX -= state.renderedSpeed * deltaMs
-    state.currentX += (state.targetX - state.currentX) * config.RELEASE_LERP
+    state.currentX -= state.renderedSpeed * deltaMs
+    state.targetX = state.currentX
   }
 
   updateMovingState()
   updateSlidePositions()
+  updateActiveSlide()
   updateParallax()
   stepCursorRingFollow()
-
-  if (!isSliderInView || document.hidden) {
-    rafId = 0
-    return
-  }
-
   rafId = requestAnimationFrame(animate)
 }
 
 function handleTouchStart(event) {
   state.isDragging = true
-  state.entrySlideActive = false
   state.startX = event.touches[0].clientX
   state.lastX = state.targetX
   state.dragDistance = 0
@@ -332,7 +330,6 @@ function handleTouchEnd() {
 function handleMouseDown(event) {
   event.preventDefault()
   state.isDragging = true
-  state.entrySlideActive = false
   state.startX = event.clientX
   state.lastMouseX = event.clientX
   state.lastX = state.targetX
@@ -375,15 +372,6 @@ function handleSlideMouseLeave() {
 
 function handleResize() {
   initializeSlides()
-  startAnimationLoop()
-}
-
-function handleDocumentVisibilityChange() {
-  if (document.hidden) {
-    cancelAnimationLoop()
-    return
-  }
-  startAnimationLoop()
 }
 
 function initializeEventListeners() {
@@ -415,7 +403,8 @@ function initializeSlider() {
   initializeSlides()
   initializeEventListeners()
   resetEntrySlide()
-  startAnimationLoop()
+  updateActiveSlide(true)
+  animate()
 }
 
 function stepCursorRingFollow() {
@@ -472,12 +461,10 @@ function initCursorRing() {
   window.addEventListener('mousemove', onWindowMouseMoveForRing, { passive: true })
   window.addEventListener('blur', hideCursorRing)
   window.addEventListener('mouseout', onWindowMouseOutForRing, { passive: true })
-  document.addEventListener('visibilitychange', handleDocumentVisibilityChange)
   cleanups.push(() => {
     window.removeEventListener('mousemove', onWindowMouseMoveForRing)
     window.removeEventListener('blur', hideCursorRing)
     window.removeEventListener('mouseout', onWindowMouseOutForRing)
-    document.removeEventListener('visibilitychange', handleDocumentVisibilityChange)
   })
 }
 
@@ -488,37 +475,18 @@ function onWindowMouseOutForRing(event) {
   }
 }
 
-function initVisibilityObserver() {
-  if (!rootRef.value || typeof IntersectionObserver === 'undefined') return
-
-  visibilityObserver = new IntersectionObserver((entries) => {
-    const [entry] = entries
-    isSliderInView = Boolean(entry?.isIntersecting)
-    if (isSliderInView) {
-      startAnimationLoop()
-      return
-    }
-    cancelAnimationLoop()
-  }, { threshold: 0.08 })
-
-  visibilityObserver.observe(rootRef.value)
-}
-
 onMounted(async () => {
   await nextTick()
   initializeSlider()
   initCursorRing()
-  initVisibilityObserver()
   unsubscribeRevealStart = subscribeRouteRevealStart(() => {
     if (!rootRef.value?.isConnected) return
     resetEntrySlide()
-    startAnimationLoop()
   })
 })
 
 onBeforeUnmount(() => {
-  cancelAnimationLoop()
-  visibilityObserver?.disconnect()
+  cancelAnimationFrame(rafId)
   unsubscribeRevealStart?.()
   cleanups.forEach((fn) => fn())
   document.documentElement.style.removeProperty('--slider-moving')
@@ -529,6 +497,23 @@ onBeforeUnmount(() => {
 <template>
   <div class="movies-page-shell">
     <main ref="rootRef" class="movies-page">
+      <div class="movies-active-panel" aria-live="polite">
+        <p class="movies-active-panel__index">{{ activeMovieIndexLabel }} / {{ totalMoviesLabel }}</p>
+        <div class="movies-active-panel__content">
+          <p class="movies-active-panel__label">Now centered</p>
+          <h2 class="movies-active-panel__title">{{ activeMovie?.title }}</h2>
+          <p class="movies-active-panel__meta">{{ activeMovie?.year }}</p>
+        </div>
+      </div>
+
+      <div class="movies-hero-tip" aria-hidden="true">
+        <span>Drag</span>
+        <span class="movies-hero-tip__divider"></span>
+        <span>Hover</span>
+        <span class="movies-hero-tip__divider"></span>
+        <span>Open</span>
+      </div>
+
       <div class="slider">
         <div ref="trackRef" class="slide-track"></div>
       </div>
@@ -565,9 +550,82 @@ onBeforeUnmount(() => {
 
 .movies-page {
   font-family: 'DM Mono', monospace;
-  background-color: #0f0f0f;
   color: #fff;
   min-height: 100svh;
+  background-color: #0f0f0f;
+}
+
+.movies-page > * {
+  position: relative;
+  z-index: 1;
+}
+
+.movies-active-panel {
+  position: absolute;
+  right: clamp(1rem, 4vw, 3.25rem);
+  top: clamp(0.35rem, 1.4vw, 1rem);
+  width: min(19rem, calc(100vw - 2rem));
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.movies-active-panel__index,
+.movies-active-panel__label,
+.movies-hero-tip {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.movies-active-panel__index,
+.movies-active-panel__label,
+.movies-hero-tip {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.movies-active-panel__index,
+.movies-active-panel__label {
+  font-size: 0.68rem;
+  color: rgb(255 255 255 / 0.56);
+}
+
+.movies-active-panel__content {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.movies-active-panel__title {
+  font-size: clamp(1.4rem, 2.8vw, 2.3rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin-top: 0.35rem;
+}
+
+.movies-active-panel__meta {
+  color: rgb(255 255 255 / 0.7);
+  font-size: 0.88rem;
+}
+
+.movies-hero-tip {
+  position: absolute;
+  left: clamp(1rem, 4vw, 3.25rem);
+  bottom: clamp(1rem, 4vw, 2.25rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: rgb(255 255 255 / 0.58);
+  font-size: 0.68rem;
+  pointer-events: none;
+}
+
+.movies-hero-tip__divider {
+  width: 1.75rem;
+  height: 1px;
+  background: rgb(255 255 255 / 0.22);
 }
 
 .movies-cursor-ring {
@@ -613,6 +671,27 @@ onBeforeUnmount(() => {
   overflow: hidden;
   user-select: none;
   cursor: grab;
+}
+
+.slider::before,
+.slider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: clamp(3rem, 8vw, 7rem);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.slider::before {
+  left: 0;
+  background: linear-gradient(90deg, #0c0c0c 0%, transparent 100%);
+}
+
+.slider::after {
+  right: 0;
+  background: linear-gradient(270deg, #0c0c0c 0%, transparent 100%);
 }
 
 .slider:active {
@@ -664,24 +743,20 @@ onBeforeUnmount(() => {
 
 .slider :deep(.slide-overlay) {
   position: absolute;
-  bottom: -1.75rem;
+  bottom: -2rem;
   left: 0;
   right: 0;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 0.8rem;
+  justify-content: space-between;
+  gap: 1rem;
   pointer-events: none;
   z-index: 10;
 }
 
-.slider :deep(.slide:hover .slide-overlay) {
-  opacity: 1;
-}
-
 .slider :deep(.project-year) {
   position: absolute;
-  top: -1.75rem;
+  top: -1.9rem;
   right: 0;
   font-weight: 500;
   font-size: 0.78rem;
@@ -726,15 +801,26 @@ onBeforeUnmount(() => {
   transform: translate(-50%, -50%) perspective(1400px) rotateX(0deg) scale(1);
 }
 
-.slider :deep(.project-title) {
-  font-weight: 500;
-  font-size: 0.8rem;
+.slider :deep(.project-title),
+.slider :deep(.project-detail) {
   opacity: 0;
   transform: translate3d(0, 1.1rem, 0);
   transition: opacity 0.34s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.slider :deep(.slide:hover .project-title) {
+.slider :deep(.project-title) {
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.slider :deep(.project-detail) {
+  color: rgb(255 255 255 / 0.58);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+}
+
+.slider :deep(.slide:hover .project-title),
+.slider :deep(.slide:hover .project-detail) {
   opacity: calc(1 - var(--slider-moving, 1));
   transform: translate3d(0, 0, 0);
 }
@@ -748,10 +834,53 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1000px) {
+  .movies-active-panel {
+    left: auto;
+    right: 1rem;
+    top: 0.75rem;
+    bottom: auto;
+    width: min(13rem, calc(100vw - 2rem));
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .movies-active-panel__title {
+    font-size: 1.15rem;
+  }
+
+  .movies-active-panel__meta {
+    font-size: 0.78rem;
+  }
+
+  .movies-hero-tip {
+    display: none;
+  }
+
   .slider :deep(.slide) {
     width: 210px;
     height: 300px;
     margin: 0 12px;
+  }
+
+  .slider :deep(.slide-overlay) {
+    bottom: -1.55rem;
+  }
+
+  .slider :deep(.project-year) {
+    top: -1.45rem;
+    font-size: 0.68rem;
+  }
+
+  .slider :deep(.project-title-center) {
+    font-size: clamp(1.8rem, 8vw, 3rem);
+  }
+
+  .slider :deep(.project-title) {
+    font-size: 0.68rem;
+  }
+
+  .slider :deep(.project-detail) {
+    font-size: 0.62rem;
   }
 }
 </style>

@@ -51,33 +51,18 @@ const props = defineProps({
       '/home/word/8.jpg',
       '/home/word/9.jpg',
       '/home/word/10.jpg',
+  
     ],
   },
 })
 
 const hoveredIndex = ref(null)
 const showOverlay = ref(false)
-const prefersReducedMotion = ref(false)
-const isMobile = ref(false)
 const chars = computed(() => Array.from(props.text || ''))
-const shouldAnimateOverlay = computed(() => !prefersReducedMotion.value && !isMobile.value)
 let overlayTimer = 0
-let motionMediaQuery = null
-let handleMotionChange = null
-let resizeHandler = null
-
-const updateViewportFlags = () => {
-  isMobile.value = window.innerWidth < 900
-}
 
 const startOverlayTimer = () => {
   window.clearTimeout(overlayTimer)
-
-  if (!shouldAnimateOverlay.value) {
-    showOverlay.value = false
-    return
-  }
-
   const lastLetterDelay = Math.max(chars.value.length - 1, 0) * props.letterDelay
   const totalDelay = (lastLetterDelay * 1000) + props.springDuration
   overlayTimer = window.setTimeout(() => {
@@ -90,45 +75,18 @@ watch(() => props.text, () => {
   startOverlayTimer()
 })
 
-watch(shouldAnimateOverlay, () => {
-  showOverlay.value = false
-  startOverlayTimer()
-})
-
 onMounted(() => {
-  motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-  handleMotionChange = () => {
-    prefersReducedMotion.value = motionMediaQuery.matches
-  }
-  handleMotionChange()
-  motionMediaQuery.addEventListener('change', handleMotionChange)
-
-  resizeHandler = () => updateViewportFlags()
-  updateViewportFlags()
-  window.addEventListener('resize', resizeHandler, { passive: true })
-
   startOverlayTimer()
 })
 
 onBeforeUnmount(() => {
   window.clearTimeout(overlayTimer)
-  motionMediaQuery?.removeEventListener?.('change', handleMotionChange)
-  if (resizeHandler) {
-    window.removeEventListener('resize', resizeHandler)
-  }
 })
 </script>
 
 <template>
   <div class="reveal-text-wrap">
-    <div
-      class="reveal-text"
-      :class="{
-        'reveal-text--reduced': prefersReducedMotion,
-        'reveal-text--mobile': isMobile,
-      }"
-      :style="{ '--rt-font-size': fontSize, '--rt-text-color': textColor, '--rt-overlay-color': overlayColor }"
-    >
+    <div class="reveal-text" :style="{ '--rt-font-size': fontSize, '--rt-text-color': textColor, '--rt-overlay-color': overlayColor }">
       <span
         v-for="(char, index) in chars"
         :key="`${char}-${index}`"
@@ -138,16 +96,15 @@ onBeforeUnmount(() => {
         @mouseenter="hoveredIndex = index"
         @mouseleave="hoveredIndex = null"
       >
-        <span class="reveal-letter__ghost" :style="{ opacity: hoveredIndex === index && !isMobile ? 0 : 1 }">
+        <span class="reveal-letter__ghost" :style="{ opacity: hoveredIndex === index ? 0 : 1 }">
           {{ char === ' ' ? '\u00A0' : char }}
         </span>
         <span
-          v-if="!prefersReducedMotion"
           class="reveal-letter__image"
           :style="{
-            opacity: hoveredIndex === index && !isMobile ? 1 : 0,
+            opacity: hoveredIndex === index ? 1 : 0,
             backgroundImage: `url('${letterImages[index % letterImages.length]}')`,
-            backgroundPosition: hoveredIndex === index && !isMobile ? '10% center' : '0% center',
+            backgroundPosition: hoveredIndex === index ? '10% center' : '0% center',
           }"
         >
           {{ char === ' ' ? '\u00A0' : char }}
@@ -191,16 +148,6 @@ onBeforeUnmount(() => {
   transform: scale(0);
   opacity: 0;
   animation: revealPop 0.9s var(--letter-delay) cubic-bezier(0.175, 0.885, 0.32, 1.3) forwards;
-}
-
-.reveal-text--mobile .reveal-letter {
-  animation-duration: 0.65s;
-}
-
-.reveal-text--reduced .reveal-letter {
-  transform: none;
-  opacity: 1;
-  animation: none;
 }
 
 .reveal-letter.is-space {

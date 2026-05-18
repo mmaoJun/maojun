@@ -38,12 +38,8 @@ const sectionRef = ref(null)
 const elements = ref([])
 const mouse = { x: 0, y: 0 }
 let frameId = 0
-let cleanupPointer = null
-let intersectionObserver = null
-let revealTimers = []
+let cleanupMouse = null
 let hasAnimatedIn = false
-let isPointerInside = false
-let isInViewport = false
 
 const sectionStyle = computed(() => ({ minHeight: props.minHeight }))
 
@@ -57,18 +53,7 @@ const setElementRef = (el, index) => {
   }
 }
 
-const cancelAnimationLoop = () => {
-  if (!frameId) return
-  window.cancelAnimationFrame(frameId)
-  frameId = 0
-}
-
 const animate = () => {
-  if (!isInViewport || (!isPointerInside && !hasAnimatedIn)) {
-    frameId = 0
-    return
-  }
-
   const sensitivity = props.sensitivity / 20
 
   elements.value.forEach((el, index) => {
@@ -92,17 +77,11 @@ const animate = () => {
   frameId = window.requestAnimationFrame(animate)
 }
 
-const ensureAnimationLoop = () => {
-  if (frameId || !isInViewport) return
-  frameId = window.requestAnimationFrame(animate)
-}
-
 const updatePointer = (clientX, clientY) => {
   if (!sectionRef.value) return
   const rect = sectionRef.value.getBoundingClientRect()
   mouse.x = clientX - rect.left - rect.width / 2
   mouse.y = clientY - rect.top - rect.height / 2
-  ensureAnimationLoop()
 }
 
 const revealImages = () => {
@@ -111,81 +90,37 @@ const revealImages = () => {
 
   elements.value.forEach((el, index) => {
     if (!el) return
-    const timer = window.setTimeout(() => {
+    const delay = index * 90
+    window.setTimeout(() => {
       el.classList.add('is-visible')
-    }, index * 70)
-    revealTimers.push(timer)
+    }, delay)
   })
 }
 
-const setupPointerTracking = () => {
-  const section = sectionRef.value
-  if (!section) return
-
-  const handlePointerEnter = (event) => {
-    isPointerInside = true
-    updatePointer(event.clientX, event.clientY)
-  }
-
-  const handlePointerMove = (event) => {
-    updatePointer(event.clientX, event.clientY)
-  }
-
-  const handlePointerLeave = () => {
-    isPointerInside = false
-  }
-
+onMounted(() => {
+  const handleMouseMove = (event) => updatePointer(event.clientX, event.clientY)
   const handleTouchMove = (event) => {
     const touch = event.touches[0]
     if (!touch) return
-    isPointerInside = true
     updatePointer(touch.clientX, touch.clientY)
   }
 
-  const handleTouchEnd = () => {
-    isPointerInside = false
+  window.addEventListener('mousemove', handleMouseMove)
+  window.addEventListener('touchmove', handleTouchMove, { passive: true })
+  cleanupMouse = () => {
+    window.removeEventListener('mousemove', handleMouseMove)
+    window.removeEventListener('touchmove', handleTouchMove)
   }
 
-  section.addEventListener('pointerenter', handlePointerEnter)
-  section.addEventListener('pointermove', handlePointerMove, { passive: true })
-  section.addEventListener('pointerleave', handlePointerLeave)
-  section.addEventListener('touchmove', handleTouchMove, { passive: true })
-  section.addEventListener('touchend', handleTouchEnd, { passive: true })
-
-  cleanupPointer = () => {
-    section.removeEventListener('pointerenter', handlePointerEnter)
-    section.removeEventListener('pointermove', handlePointerMove)
-    section.removeEventListener('pointerleave', handlePointerLeave)
-    section.removeEventListener('touchmove', handleTouchMove)
-    section.removeEventListener('touchend', handleTouchEnd)
-  }
-}
-
-onMounted(() => {
-  setupPointerTracking()
-
-  intersectionObserver = new IntersectionObserver((entries) => {
-    const [entry] = entries
-    isInViewport = Boolean(entry?.isIntersecting)
-    if (isInViewport) {
-      revealImages()
-      ensureAnimationLoop()
-      return
-    }
-    cancelAnimationLoop()
-  }, { threshold: 0.12 })
-
-  if (sectionRef.value) {
-    intersectionObserver.observe(sectionRef.value)
-  }
+  revealImages()
+  frameId = window.requestAnimationFrame(animate)
 })
 
 onBeforeUnmount(() => {
-  cancelAnimationLoop()
-  cleanupPointer?.()
-  intersectionObserver?.disconnect()
-  revealTimers.forEach((timer) => window.clearTimeout(timer))
-  revealTimers = []
+  if (frameId) {
+    window.cancelAnimationFrame(frameId)
+  }
+  cleanupMouse?.()
 })
 </script>
 

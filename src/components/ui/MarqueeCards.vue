@@ -1,13 +1,7 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const hovered = ref(false)
-const prefersReducedMotion = ref(false)
-const isInView = ref(true)
-const shellRef = ref(null)
-let motionMediaQuery = null
-let handleMotionChange = null
-let visibilityObserver = null
 
 const cards = [
   {
@@ -53,32 +47,6 @@ const cards = [
 
 const marqueeCards = computed(() => [...cards, ...cards])
 const duration = computed(() => `${cards.length * 2500}ms`)
-const playState = computed(() => {
-  if (prefersReducedMotion.value || !isInView.value) return 'paused'
-  return hovered.value ? 'paused' : 'running'
-})
-
-onMounted(() => {
-  motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-  handleMotionChange = () => {
-    prefersReducedMotion.value = motionMediaQuery.matches
-  }
-  handleMotionChange()
-  motionMediaQuery.addEventListener('change', handleMotionChange)
-
-  if (shellRef.value && typeof IntersectionObserver !== 'undefined') {
-    visibilityObserver = new IntersectionObserver((entries) => {
-      const [entry] = entries
-      isInView.value = Boolean(entry?.isIntersecting)
-    }, { threshold: 0.08 })
-    visibilityObserver.observe(shellRef.value)
-  }
-})
-
-onBeforeUnmount(() => {
-  motionMediaQuery?.removeEventListener?.('change', handleMotionChange)
-  visibilityObserver?.disconnect()
-})
 </script>
 
 <template>
@@ -92,7 +60,6 @@ onBeforeUnmount(() => {
     </div>
 
     <div
-      ref="shellRef"
       class="marquee-cards-shell"
       @mouseenter="hovered = true"
       @mouseleave="hovered = false"
@@ -103,7 +70,7 @@ onBeforeUnmount(() => {
         class="marquee-cards-track"
         :style="{
           animationDuration: duration,
-          animationPlayState: playState,
+          animationPlayState: hovered ? 'paused' : 'running',
         }"
       >
         <div class="marquee-cards-row">
@@ -201,12 +168,11 @@ onBeforeUnmount(() => {
   height: 20rem;
   margin: 0 1rem;
   overflow: hidden;
-  transition: transform 0.26s ease;
-  will-change: transform;
+  transition: transform 0.3s ease;
 }
 
 .marquee-card:hover {
-  transform: scale(0.96);
+  transform: scale(0.9);
 }
 
 .marquee-card img {
@@ -225,8 +191,8 @@ onBeforeUnmount(() => {
   padding: 1rem;
   opacity: 0;
   transition: opacity 0.3s ease;
-  backdrop-filter: blur(8px);
-  background: rgb(0 0 0 / 0.18);
+  backdrop-filter: blur(12px);
+  background: rgb(0 0 0 / 0.2);
 }
 
 .marquee-card:hover .marquee-card__overlay {

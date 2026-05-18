@@ -61,7 +61,7 @@ const setActiveSlide = (index) => {
             :alt="slide.title"
             class="animated-slideshow-image"
             :class="{ 'is-active': activeSlide === slideIndex }"
-            :loading="slideIndex === 0 ? 'eager' : 'lazy'"
+            loading="eager"
             decoding="async"
           />
         </div>
@@ -159,7 +159,6 @@ const setActiveSlide = (index) => {
   height: min(80svh, 40rem);
   display: grid;
   overflow: hidden;
-  isolation: isolate;
 }
 
 .animated-slideshow-image {
@@ -167,17 +166,12 @@ const setActiveSlide = (index) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0;
-  transform: scale(1.035) translateZ(0);
-  transition:
-    opacity 0.45s ease,
-    transform 0.8s cubic-bezier(0.33, 1, 0.68, 1);
-  will-change: transform, opacity;
+  clip-path: polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%);
+  transition: clip-path 0.8s cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 .animated-slideshow-image.is-active {
-  opacity: 1;
-  transform: scale(1) translateZ(0);
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
 }
 
 @media (max-width: 900px) {
