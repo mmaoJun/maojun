@@ -10,6 +10,22 @@ export default defineConfig({
     vue(),
     
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/images': {
+        target: 'https://maojunweb.oss-cn-beijing.aliyuncs.com',
+        changeOrigin: true,
+      },
+      '/videos': {
+        target: 'https://maojunweb.oss-cn-beijing.aliyuncs.com',
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

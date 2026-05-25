@@ -26,3 +26,13 @@ Thumbs.db
 
 # local generated or private content
 src/config/siteContent.js
+
+# Java / Maven build output
+server/target/
+
+# JetBrains IDE files
+server/.idea/
+
+# Backend sensitive config (contains real credentials)
+server/src/main/resources/application.yml
+server/env.conf

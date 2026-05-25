@@ -1,62 +1,35 @@
 <script setup>
 import { computed, ref } from 'vue'
 
-const hovered = ref(false)
+const props = defineProps({
+  heading: { type: String, default: 'Design By AI' },
+  description: { type: String, default: 'The UI design is inspired by 21st.dev, and the image materials come from pexels.com.' },
+  cards: { type: Array, default: () => [] },
+})
 
-const cards = [
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/1.jpg',
-  },
-  
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/2.jpg',
-  },
-
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/3.jpg',
-  },
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/4.jpg',
-  },
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/5.jpg',
-    image: '/home/part4/3.jpg',
-  },
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/6.jpg',
-  },
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/7.jpg',
-  },
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/8.jpg',
-  },
-  {
-    title: 'DESIGN BY AI',
-    image: '/home/part4/9.jpg',
-  },
+const defaultCards = [
+  { title: 'DESIGN BY AI', image: '/home/part4/1.jpg' },
+  { title: 'DESIGN BY AI', image: '/home/part4/2.jpg' },
+  { title: 'DESIGN BY AI', image: '/home/part4/3.jpg' },
+  { title: 'DESIGN BY AI', image: '/home/part4/4.jpg' },
+  { title: 'DESIGN BY AI', image: '/home/part4/5.jpg' },
+  { title: 'DESIGN BY AI', image: '/home/part4/6.jpg' },
+  { title: 'DESIGN BY AI', image: '/home/part4/7.jpg' },
+  { title: 'DESIGN BY AI', image: '/home/part4/8.jpg' },
+  { title: 'DESIGN BY AI', image: '/home/part4/9.jpg' },
 ]
 
-const marqueeCards = computed(() => [...cards, ...cards])
-const duration = computed(() => `${cards.length * 2500}ms`)
+const hovered = ref(false)
+const effectiveCards = computed(() => props.cards.length ? props.cards : defaultCards)
+const marqueeCards = computed(() => [...effectiveCards.value, ...effectiveCards.value])
+const duration = computed(() => `${effectiveCards.value.length * 2500}ms`)
 </script>
 
 <template>
   <section class="marquee-cards-section">
     <div class="marquee-cards-heading">
-      <h2>Design By AI</h2>
-      <p>
-        The UI design is inspired by 21st.dev, and the image materials come from pexels.com. 
-        The design is created using AI tools, showcasing the potential of AI in creative processes.
-      </p>
+      <h2>{{ props.heading }}</h2>
+      <p>{{ props.description }}</p>
     </div>
 
     <div

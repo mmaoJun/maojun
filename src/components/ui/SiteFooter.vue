@@ -85,7 +85,7 @@ defineProps({
 
 <style scoped>
 .site-footer-v2 {
-  padding: 4rem 0 2rem;
+  padding: 1.5rem 0 1rem;
   background:
     linear-gradient(180deg, #000 0%, #070707 100%),
     radial-gradient(circle at top, rgb(255 255 255 / 0.05), transparent 35%);
@@ -100,7 +100,7 @@ defineProps({
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .site-footer-v2__brand {
@@ -171,8 +171,8 @@ defineProps({
 }
 
 .site-footer-v2__bottom {
-  margin-top: 1.75rem;
-  padding-top: 1.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
   border-top: 1px solid rgb(255 255 255 / 0.1);
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
@@ -216,7 +216,7 @@ defineProps({
 
 @media (max-width: 900px) {
   .site-footer-v2 {
-    padding: 3rem 0 1.75rem;
+    padding: 1.25rem 0 0.75rem;
   }
 
   .site-footer-v2__inner {

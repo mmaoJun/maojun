@@ -30,11 +30,7 @@
   inset: 0;
   z-index: 0;
   border-radius: inherit;
-  box-shadow:
-    0 4px 24px rgb(15 23 42 / 12%),
-    0 1px 3px rgb(15 23 42 / 8%),
-    inset 0 1px 0 rgb(255 255 255 / 85%),
-    inset 0 -1px 0 rgb(15 23 42 / 6%);
+  box-shadow: none;
   pointer-events: none;
 }
 
@@ -44,19 +40,9 @@
   z-index: 0;
   border-radius: inherit;
   overflow: hidden;
-  background: rgb(248 250 252 / 72%);
-  border: 1px solid rgb(15 23 42 / 10%);
-  backdrop-filter: url('#container-glass') blur(20px) saturate(140%);
-  -webkit-backdrop-filter: url('#container-glass') blur(20px) saturate(140%);
+  background: transparent;
+  border: none;
   pointer-events: none;
-}
-
-@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .hero-nav__filter {
-    background: rgb(248 250 252 / 92%);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
 }
 
 .hero-nav__content {

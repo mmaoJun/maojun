@@ -6,6 +6,8 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from '@studio-freight/lenis'
 import { aboutPageConfig, homePageConfig, siteFooter, siteNavLinks } from './config/siteContent'
+import { useHomeContent } from './composables/useHomeContent'
+import { proxyUrl } from './utils/ossProxy'
 import GlassFilter from './components/ui/GlassFilter.vue'
 import LiquidGlassNav from './components/ui/LiquidGlassNav.vue'
 import LiquidGlassButton from './components/ui/LiquidGlassButton.vue'
@@ -30,44 +32,50 @@ const enableRouteTransitionAnimation = true
 const routeTransitionAnimationEnabled = ref(enableRouteTransitionAnimation)
 const isHomePage = computed(() => route.path === '/')
 const isAboutPage = computed(() => route.path === '/about')
+const ADMIN_PATHS = ['/login', '/manage-images', '/home-editor', '/movies-editor', '/pictures-editor', '/about-editor', '/musics-editor']
+const isAdminRoute = computed(() => ADMIN_PATHS.some(p => route.path.startsWith(p)))
 const homeConfig = homePageConfig
 const aboutConfig = aboutPageConfig
 const navLinks = siteNavLinks
-const footerInfo = siteFooter
+const footerInfo = computed(() => homeContent.footerData())
 
-const heroLoaderCenterImage = homeConfig.heroMedia.loaderCenterImage
-const heroFallbackPoster = homeConfig.heroMedia.fallbackPoster
-const heroVideo = homeConfig.heroMedia.video
-const heroPoster = ref(heroFallbackPoster)
-const heroFrameCacheKey = `hero-first-frame:${heroVideo}`
+const homeContent = useHomeContent()
+
+const heroMediaType = computed(() => homeContent.hero().heroMedia.type || 'video')
+const heroSrc = computed(() => proxyUrl(homeContent.hero().heroMedia.src))
+const heroLoaderCenterImage = computed(() => homeContent.hero().heroMedia.loaderCenterImage)
+const heroFallbackPoster = computed(() => homeContent.hero().heroMedia.fallbackPoster)
+const heroPoster = ref(heroFallbackPoster.value)
+const heroFrameCacheKey = computed(() => heroMediaType.value === 'video' ? `hero-first-frame:${heroSrc.value}` : null)
+const isHeroVideo = computed(() => heroMediaType.value === 'video')
 const burningImage = homeConfig.burningImage
-const cardsImage = homeConfig.cardsImage
-const collectionItems = [
-  '/home/part1/1.png',
-  '/home/part1/2.png',
-  '/home/part1/3.png',
-  '/home/part1/4.png',
-  '/home/part1/5.png',
-  '/home/part1/6.png',
-  '/home/part1/7.png',
-  '/home/part1/8.png',
-  '/home/part1/9.png',
-  '/home/part1/10.png',
-  '/home/part1/11.png',
-  '/home/part1/12.png',
-  
-]
-const [cardBack1, cardBack2, cardBack3] = homeConfig.cardBackImages
+const cardsImage = computed(() => homeContent.cardFlip().cardsImage)
+const collectionItems = computed(() => homeContent.collectionImages())
+
+const cardBack1 = computed(() => homeContent.cardFlip().cardBackImages[0])
+const cardBack2 = computed(() => homeContent.cardFlip().cardBackImages[1])
+const cardBack3 = computed(() => homeContent.cardFlip().cardBackImages[2])
 const hitokoto2 = ref('')
 const routeContentVisible = ref(true)
+const navReady = ref(false)
 const homeRoot = ref(null)
-const showLoader = ref(true)
+const getInitialShowLoader = () => {
+  try {
+    const isAdminPath = ADMIN_PATHS.some(p => window.location.pathname.startsWith(p))
+    if (isAdminPath) return false
+    return sessionStorage.getItem('site-loader-played') !== '1'
+  } catch {
+    return true
+  }
+}
+
+const showLoader = ref(getInitialShowLoader())
 const loaderDone = ref(false)
 const loaderHeroBlast = ref(null)
 const loaderImages = homeConfig.loader.images
 const loaderSeed = computed(() => [
   loaderImages[0], loaderImages[1], loaderImages[2],
-  loaderImages[3], heroPoster.value, loaderImages[4],
+  loaderImages[3], heroLoaderCenterImage.value, loaderImages[4],
   loaderImages[5], loaderImages[6], loaderImages[7],
 ])
 const loaderTracks = homeConfig.loader.tracks
@@ -190,7 +198,7 @@ const getHitokoto2 = async () => {
 
 const getCachedHeroFrame = () => {
   try {
-    return localStorage.getItem(heroFrameCacheKey)
+    return localStorage.getItem(heroFrameCacheKey.value)
   } catch {
     return null
   }
@@ -198,7 +206,7 @@ const getCachedHeroFrame = () => {
 
 const setCachedHeroFrame = (frame) => {
   try {
-    localStorage.setItem(heroFrameCacheKey, frame)
+    localStorage.setItem(heroFrameCacheKey.value, frame)
   } catch {
     // ignore storage quota / privacy mode failures
   }
@@ -206,7 +214,7 @@ const setCachedHeroFrame = (frame) => {
 
 const captureVideoFirstFrame = () => new Promise((resolve) => {
   const video = document.createElement('video')
-  video.src = heroVideo
+  video.src = heroSrc.value
   video.muted = true
   video.playsInline = true
   video.preload = 'auto'
@@ -220,7 +228,7 @@ const captureVideoFirstFrame = () => new Promise((resolve) => {
 
   const fallback = () => {
     cleanup()
-    resolve(heroFallbackPoster)
+    resolve(heroFallbackPoster.value)
   }
 
   const drawFrame = () => {
@@ -281,7 +289,7 @@ const playSiteLoader = async () => {
   const centerCell = document.querySelector('.loader-cell.is-center')
   const nonCenterCells = cells.filter((el) => !el.classList.contains('is-center'))
   const heroFrame = document.querySelector('.hero-frame')
-  const heroMediaEl = document.querySelector('.hero-media .hero-video')
+  const heroMediaEl = document.querySelector('.hero-media .hero-media-el')
 
   if (!overlay || !cells.length || !centerCell || !heroFrame || !heroMediaEl) {
     showLoader.value = false
@@ -301,7 +309,7 @@ const playSiteLoader = async () => {
       const img = cell.querySelector('img')
       if (!img) return
       if (idx === 4 && keepCenter) {
-        img.src = heroLoaderCenterImage
+        img.src = heroLoaderCenterImage.value
       } else {
         img.src = nextImg()
       }
@@ -310,15 +318,15 @@ const playSiteLoader = async () => {
 
   const setCenterToHero = () => {
     const centerImg = centerCell.querySelector('img')
-    if (centerImg) centerImg.src = heroLoaderCenterImage
+    if (centerImg) centerImg.src = heroLoaderCenterImage.value
   }
 
   const getHeroTransitionRect = () => {
     const frameRect = heroFrame.getBoundingClientRect()
     if (window.innerWidth > 1000) return frameRect
 
-    const naturalW = heroMediaEl.videoWidth || heroMediaEl.clientWidth
-    const naturalH = heroMediaEl.videoHeight || heroMediaEl.clientHeight
+    const naturalW = heroMediaEl.videoWidth || heroMediaEl.naturalWidth || heroMediaEl.clientWidth
+    const naturalH = heroMediaEl.videoHeight || heroMediaEl.naturalHeight || heroMediaEl.clientHeight
     if (!naturalW || !naturalH) return frameRect
 
     const frameRatio = frameRect.width / frameRect.height
@@ -392,53 +400,53 @@ const playSiteLoader = async () => {
       }, '<0.03')
       .add(() => {
         randomizeTiles(false)
-        swapTimer = window.setInterval(() => randomizeTiles(false), 90)
+        swapTimer = window.setInterval(() => randomizeTiles(false), 70)
       }, '>-0.02')
       .to(leftTextNodes, {
         color: '#f2f2f2',
-        duration: 0.38,
-        stagger: 0.03,
+        duration: 0.26,
+        stagger: 0.02,
       }, '<')
       .to(rightTextNodes, {
         color: '#f2f2f2',
-        duration: 0.38,
-        stagger: 0.03,
+        duration: 0.26,
+        stagger: 0.02,
       }, '<')
       .to(cells, {
         filter: 'brightness(1)',
-        duration: 0.34,
-        stagger: (idx) => Math.floor(idx / 3) * 0.055 + (idx % 3) * 0.018,
+        duration: 0.24,
+        stagger: (idx) => Math.floor(idx / 3) * 0.04 + (idx % 3) * 0.012,
       }, '<')
       .to('.loader-logo', {
         opacity: 0,
         y: -4,
-        duration: 0.26,
+        duration: 0.2,
         ease: 'power1.out',
-      }, '<0.08')
-      .to({}, { duration: 1.08 })
+      }, '<0.06')
+      .to({}, { duration: 0.25 })
       .to(leftRows, {
         clipPath: 'polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)',
-        duration: 0.62,
+        duration: 0.42,
         ease: 'power2.inOut',
-        stagger: 0.045,
+        stagger: 0.03,
       })
       .to(rightRows, {
         clipPath: 'polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)',
-        duration: 0.62,
+        duration: 0.42,
         ease: 'power2.inOut',
-        stagger: 0.045,
+        stagger: 0.03,
       }, '<')
       .to(leftTextNodes, {
         filter: 'blur(1.2px)',
         color: '#8a8a8a',
-        duration: 0.44,
-        stagger: 0.03,
+        duration: 0.3,
+        stagger: 0.02,
       }, '<0.02')
       .to(rightTextNodes, {
         filter: 'blur(1.2px)',
         color: '#8a8a8a',
-        duration: 0.44,
-        stagger: 0.03,
+        duration: 0.3,
+        stagger: 0.02,
       }, '<')
       .add(() => {
         window.clearInterval(swapTimer)
@@ -450,14 +458,14 @@ const playSiteLoader = async () => {
       }, '<0.02')
       .to(nonCenterCells, {
         clipPath: 'polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)',
-        duration: 0.46,
+        duration: 0.32,
         ease: 'power2.inOut',
         stagger: 0,
       }, '>')
       .to(nonCenterCells, {
         opacity: 0,
-        duration: 0.22,
-      }, '<0.2')
+        duration: 0.16,
+      }, '<0.14')
       .add(() => {
         const rect = centerCell.getBoundingClientRect()
         if (!loaderHeroBlast.value) return
@@ -474,7 +482,7 @@ const playSiteLoader = async () => {
           borderRadius: `${centerRadius}px`,
         })
       })
-      .to('.loader-grid', { opacity: 0, duration: 0.18 }, '<')
+      .to('.loader-grid', { opacity: 0, duration: 0.12 }, '<')
       .to(loaderHeroBlast.value, {
         x: () => getHeroTransitionRect().left,
         y: () => getHeroTransitionRect().top,
@@ -485,12 +493,13 @@ const playSiteLoader = async () => {
           const targetRadius = window.innerWidth <= 1000 ? 0 : parseFloat(heroRadius) || 16
           return `${targetRadius}px`
         },
-        duration: 1.35,
+        opacity: 0,
+        duration: 0.85,
         ease: 'power3.inOut',
       }, '<')
-      .to('.site-loader', { opacity: 0, duration: 0.28 }, '>-0.12')
-      .to('.hero-nav', { opacity: 1, duration: 0.5, ease: 'power2.out' }, '<0.02')
-      .to('.page-jumpers', { y: 0, opacity: 1, duration: 0.56, ease: 'power2.out' }, '<0.06')
+      .to('.site-loader', { opacity: 0, duration: 0.2 }, '>-0.08')
+      .to('.hero-nav', { opacity: 1, duration: 0.35, ease: 'power2.out' }, '<0.02')
+      .to('.page-jumpers', { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, '<0.04')
   })
 
   if (loaderHeroBlast.value) {
@@ -622,7 +631,7 @@ const initHeroScroll = () => {
   const hero = homeRoot.value?.querySelector('.hero')
   const intro = homeRoot.value?.querySelector('.mwg_effect000')
   const frame = homeRoot.value?.querySelector('.hero-frame')
-  const heroVideoEl = homeRoot.value?.querySelector('.hero-media .hero-video')
+  const heroVideoEl = homeRoot.value?.querySelector('.hero-media .hero-media-el')
   const heroCopy = homeRoot.value?.querySelector('.hero-copy')
   if (!nav || !hero || !intro || !frame || !heroVideoEl || !heroCopy) return
 
@@ -933,7 +942,18 @@ onMounted(async () => {
   unsubscribeRouteContentVisibility = subscribeRouteContentVisible((visible) => {
     routeContentVisible.value = visible
   })
-  heroPoster.value = getCachedHeroFrame() || await captureVideoFirstFrame()
+
+  if (ADMIN_PATHS.some(p => window.location.pathname.startsWith(p))) {
+    showLoader.value = false
+    loaderDone.value = true
+    sessionStorage.setItem('site-loader-played', '1')
+    return
+  }
+
+  await homeContent.fetchContent()
+  heroPoster.value = isHeroVideo.value
+    ? (getCachedHeroFrame() || await captureVideoFirstFrame())
+    : heroSrc.value
   navEl = document.querySelector('.hero-nav')
   navInitialWidth = getDefaultNavWidthPx()
   if (isHomePage.value) {
@@ -941,9 +961,10 @@ onMounted(async () => {
   } else {
     applyCompactNavWidth()
   }
+  navReady.value = true
 
   const loaderPlayed = sessionStorage.getItem('site-loader-played') === '1'
-  if (!loaderPlayed) {
+  if (!loaderPlayed && !ADMIN_PATHS.some(p => window.location.pathname.startsWith(p))) {
     await playSiteLoader()
     sessionStorage.setItem('site-loader-played', '1')
     if (route.path !== '/') {
@@ -959,6 +980,7 @@ onMounted(async () => {
 })
 
 watch(() => route.path, (newPath, oldPath) => {
+  if (newPath === '/' && oldPath && oldPath !== '/') homeContent.fetchContent()
   if (!navEl) return
   if (oldPath) {
     const currentY = oldPath === '/' ? getCurrentHomeScrollY() : (window.scrollY || 0)
@@ -985,6 +1007,13 @@ watch(() => route.path, (newPath, oldPath) => {
 })
 
 watch(isHomePage, async (isHome) => {
+  if (isAdminRoute.value) {
+    deactivateHome()
+    showLoader.value = false
+    loaderDone.value = true
+    return
+  }
+
   if (isHome) {
     await activateHome()
   } else {
@@ -1001,9 +1030,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <RouteCurtain />
-  <div :style="{ visibility: routeContentVisible ? 'visible' : 'hidden' }">
-    <div v-if="showLoader" class="site-loader">
+  <RouterView v-if="isAdminRoute" />
+  <template v-else>
+    <RouteCurtain />
+    <div :style="{ visibility: routeContentVisible ? 'visible' : 'hidden' }">
+      <div v-if="showLoader" class="site-loader">
     <div class="loader-columns loader-side loader-left">
       <div class="loader-head loader-row">
         <p>{{ homeConfig.loader.sideHeading }}</p>
@@ -1041,15 +1072,23 @@ onBeforeUnmount(() => {
   </div>
 
   <GlassFilter />
-  <div v-show="!showLoader" class="hero-nav-wrap">
+  <div v-show="!showLoader && navReady" class="hero-nav-wrap">
     <LiquidGlassNav>
       <a class="hero-logo" href="/" @click="handleGoHome">{{ homeConfig.brand }}</a>
       <nav class="hero-links">
-        <a v-for="link in navLinks" :key="link.href" :href="link.href"
-          @click.prevent="navigateWithNavTransition(link.href)">{{ link.label }}</a>
+        <a v-for="link in navLinks" :key="link.href" :href="link.href" class="nav-icon-link"
+          @click.prevent="navigateWithNavTransition(link.href)" :title="link.label">
+          <svg v-if="link.icon === 'music'" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg v-else-if="link.icon === 'image'" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><polyline points="12 2 12 22"/><polyline points="2 8.5 12 15.5 22 8.5"/></svg>
+          <svg v-else-if="link.icon === 'film'" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="9"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="2" y1="12" x2="9" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="12" y1="15" x2="12" y2="22"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="15" y1="12" x2="22" y2="12"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+        </a>
       </nav>
-      <LiquidGlassButton class="hero-cta" @click="navigateWithNavTransition('/about')">{{ homeConfig.aboutLabel }}
-      </LiquidGlassButton>
+      <a class="hero-settings" href="/login" @click.prevent="navigateWithNavTransition('/login')" title="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </a>
     </LiquidGlassNav>
 
     <button
@@ -1075,15 +1114,16 @@ onBeforeUnmount(() => {
       <div class="hero-inner">
         <div class="hero-frame">
           <div class="hero-media">
-            <video class="hero-video" :src="heroVideo" :poster="heroPoster" autoplay muted loop playsinline
+            <video v-if="heroMediaType === 'video'" class="hero-media-el" :src="heroSrc" :poster="heroPoster" autoplay muted loop playsinline
               preload="metadata"></video>
+            <img v-else class="hero-media-el" :src="heroSrc" alt="" />
           </div>
           <div class="hero-copy">
-            <RevealTextHero text="DESIGN BY AI" text-color="#f8fafc" overlay-color="#ef4444"
+            <RevealTextHero :text="homeContent.hero().revealText" text-color="#f8fafc" overlay-color="#ef4444"
               font-size="clamp(3rem, 8vw, 7.8rem)" />
           </div>
           <span class="hero-tip">
-            <ShiningText :text="homeConfig.heroTip" />
+            <ShiningText :text="homeContent.hero().heroTip" />
           </span>
         </div>
       </div>
@@ -1097,13 +1137,13 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <AnimatedSlideshow />
+    <AnimatedSlideshow :eyebrow="homeContent.animatedSlideshow().eyebrow" :slides="homeContent.animatedSlideshow().slides" />
 
-    <MarqueeCards />
+    <MarqueeCards :heading="homeContent.marqueeCards().heading" :description="homeContent.marqueeCards().description" :cards="homeContent.marqueeCards().cards" />
 
     <section class="sticky">
       <div class="sticky-header">
-        <h1>DESIGN BY AI</h1>
+        <h1>{{ homeContent.cardFlip().title }}</h1>
       </div>
       <div class="card-container">
         <div class="card" id="card-1">
@@ -1121,13 +1161,14 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <ParallaxFloatingGallery title="MAOJUN" button-label="about" min-height="100svh" />
+    <ParallaxFloatingGallery :title="homeContent.parallaxGallery().galleryTitle" button-label="about" min-height="100svh" :images="homeContent.parallaxGallery().images" :gallery-route="homeContent.parallaxGallery().route" />
     <SiteFooter :brand-name="footerInfo.brandName" :logo-text="footerInfo.logoText"
       :social-links="footerInfo.socialLinks" :main-links="footerInfo.mainLinks" :legal-links="footerInfo.legalLinks"
       :copyright="footerInfo.copyright" />
   </main>
   <RouterView v-else />
-  </div>
+    </div>
+  </template>
 </template>
 
 <style scoped>
@@ -1273,7 +1314,11 @@ onBeforeUnmount(() => {
   position: relative;
   overflow: hidden;
   border-radius: 0;
-  background: #111
+  background: #111;
+  opacity: 0;
+  transform: translateY(-26px);
+  filter: brightness(0.6);
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)
 }
 
 .loader-cell img {
@@ -1301,6 +1346,11 @@ onBeforeUnmount(() => {
   align-items: center
 }
 
+.loader-left .loader-row,
+.loader-right .loader-row {
+  clip-path: polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)
+}
+
 .loader-left .loader-row p {
   padding-left: .55rem
 }
@@ -1314,7 +1364,7 @@ onBeforeUnmount(() => {
   font-size: .9rem;
   letter-spacing: .04em;
   line-height: 1.45;
-  color: #6a6a6a;
+  color: #5f5f5f;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis
@@ -1405,17 +1455,24 @@ p {
 
 .hero-logo {
   font-family: 'STXingkai', sans-serif;
-  font-size: 2.3rem;
+  font-size: 2.7rem;
   font-weight: 700;
   letter-spacing: .01em;
-  color: rgb(15 23 42 / 92%);
+  color: #888;
   text-decoration: none;
-  text-shadow: 0 1px 0 rgb(255 255 255 / 60%)
+  transition: color 0.25s ease;
+}
+
+.hero-logo:hover {
+  color: #fa5c2f;
 }
 
 .hero-links {
   display: flex;
-  gap: 1.4rem
+  gap: 1.4rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .hero-links a,
@@ -1423,22 +1480,49 @@ p {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgb(30 41 59 / 90%);
+  color: #888;
   text-decoration: none;
-  font-size: .9rem;
+  font-size: 1.2rem;
   font-weight: 600;
-  transition: color .25s ease, transform .3s ease;
-  text-shadow: 0 1px 0 rgb(255 255 255 / 50%)
 }
 
 .hero-links a:hover,
 .hero-links :deep(a:hover) {
-  color: rgb(15 23 42);
-  transform: scale(1.05)
+  animation: navBounce .4s ease;
 }
 
-:deep(.hero-cta) {
-  flex: 0 0 auto
+.nav-icon-link {
+  padding: 0.35rem;
+  border-radius: 10px;
+  transition: color 0.25s ease, opacity 0.2s ease;
+}
+
+.nav-icon-link:hover {
+  color: #fa5c2f;
+}
+
+@keyframes navBounce {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+  50% { transform: translateY(0); }
+  70% { transform: translateY(-3px); }
+}
+
+.hero-settings {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  color: #888;
+  opacity: 1;
+  transition: color 0.25s ease, opacity 0.2s, transform 0.2s;
+}
+.hero-settings:hover {
+  color: #fa5c2f;
+  transform: scale(1.1);
 }
 
 .hero {
@@ -1502,8 +1586,7 @@ p {
   z-index: 0
 }
 
-.hero-media img,
-.hero-media .hero-video {
+.hero-media .hero-media-el {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1765,6 +1848,9 @@ p {
   }
 
   .hero-links {
+    position: static;
+    left: auto;
+    transform: none;
     display: flex;
     flex: 1 1 auto;
     justify-content: center;
@@ -1782,7 +1868,7 @@ p {
     place-items: unset;
     background: transparent;
     border: none;
-    font-size: .68rem;
+    font-size: 1rem;
     letter-spacing: .01em;
     white-space: nowrap
   }
@@ -1794,10 +1880,9 @@ p {
     background: transparent
   }
 
-  :deep(.hero-cta) {
-    font-size: .64rem;
-    padding: .5rem .7rem;
-    border-radius: 10px
+  .hero-settings {
+    width: 2rem;
+    height: 2rem;
   }
 
   .hero-frame {
@@ -1815,8 +1900,7 @@ p {
     background: #000
   }
 
-  .hero-media img,
-  .hero-media .hero-video {
+  .hero-media .hero-media-el {
     width: 100%;
     height: 100%;
     object-fit: contain;

@@ -1,0 +1,16 @@
+[Unit]
+Description=MyWebsite Backend (Spring Boot)
+After=network.target mysql.service
+
+[Service]
+User=root
+WorkingDirectory=/opt/mywebsite/backend
+ExecStart=/usr/bin/java -jar /opt/mywebsite/backend/admin-server.jar --spring.profiles.active=prod
+EnvironmentFile=/opt/mywebsite/backend/env.conf
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

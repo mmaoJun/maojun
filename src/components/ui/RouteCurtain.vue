@@ -195,6 +195,8 @@ onBeforeUnmount(() => {
   overflow: hidden;
   backface-visibility: hidden;
   transform: translateZ(0);
+  opacity: 0;
+  visibility: hidden;
 }
 
 .route-curtain__inner {

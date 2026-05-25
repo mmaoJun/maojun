@@ -1,20 +1,42 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import * as THREE from 'three'
 import Lenis from 'lenis'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { musicsPageConfig } from '../config/siteContent'
 import { vertexShader, fragmentShader } from './shaders.js'
 import MovieCards from './movie-cards.vue'
+import { proxyUrl } from '../utils/ossProxy'
 
 const heroSection = ref(null)
 const spiralCanvas = ref(null)
-const pageConfig = musicsPageConfig
 
-const pictureFiles = pageConfig.pictureFiles
+const data = reactive({
+  heroTitle: musicsPageConfig.heroTitle,
+  images: musicsPageConfig.pictureFiles.map(f => `/media-musics/${f}`),
+})
+
+async function fetchContent() {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 3000)
+  try {
+    const res = await fetch('/api/home-content/public', { signal: ctrl.signal })
+    clearTimeout(timer)
+    if (!res.ok) return
+    const json = await res.json()
+    if (!json.data || !json.data.length) return
+    const item = json.data.find(i => i.sectionKey === 'musics/content')
+    if (!item) return
+    const d = JSON.parse(item.contentJson)
+    if (d.heroTitle != null) data.heroTitle = d.heroTitle
+    if (d.images) d.images.forEach((url, i) => {
+      if (i < data.images.length && url != null) data.images[i] = url
+    })
+  } catch { /* use defaults */ }
+}
 
 const CONFIG = {
-  totalImages: pictureFiles.length,
+  totalImages: data.images.length,
   tilesPerRevolution: 15,
   revolutions: 5,
   startRadius: 5,
@@ -96,7 +118,10 @@ const animate = () => {
   renderer.render(scene, camera)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchContent()
+  CONFIG.totalImages = data.images.length
+
   if (!heroSection.value) return
 
   lenis = new Lenis({ autoRaf: true })
@@ -142,7 +167,7 @@ onMounted(() => {
 
   const textureLoader = new THREE.TextureLoader()
   const textures = Array.from({ length: CONFIG.totalImages }, (_, i) =>
-    textureLoader.load(`/media-musics/${pictureFiles[i]}`, (t) => {
+    textureLoader.load(proxyUrl(data.images[i]), (t) => {
       t.minFilter = THREE.LinearMipmapLinearFilter
       t.anisotropy = renderer.capabilities.getMaxAnisotropy()
     }),
@@ -260,7 +285,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="pictures-page">
     <section ref="heroSection" class="hero">
-      <h1>{{ pageConfig.heroTitle }}</h1>
+      <h1>{{ data.heroTitle }}</h1>
       <canvas ref="spiralCanvas" class="spiral-canvas"></canvas>
     </section>
     <MovieCards embedded />

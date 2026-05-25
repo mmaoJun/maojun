@@ -30,9 +30,17 @@ const props = defineProps({
     type: Number,
     default: 0.05,
   },
+  images: {
+    type: Array,
+    default: () => homePageConfig.parallaxFloatingGallery.images,
+  },
+  galleryRoute: {
+    type: String,
+    default: homePageConfig.parallaxFloatingGallery.route,
+  },
 })
 
-const imageItems = homePageConfig.parallaxFloatingGallery.images
+const imageItems = computed(() => props.images)
 
 const sectionRef = ref(null)
 const elements = ref([])
@@ -44,7 +52,7 @@ let hasAnimatedIn = false
 const sectionStyle = computed(() => ({ minHeight: props.minHeight }))
 
 const handleButtonClick = () => {
-  router.push(homePageConfig.parallaxFloatingGallery.route)
+  router.push(props.galleryRoute)
 }
 
 const setElementRef = (el, index) => {

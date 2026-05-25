@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
 import { moviesPageConfig } from '../config/siteContent'
+import { proxyUrl } from '../utils/ossProxy'
 
 const props = defineProps({
   embedded: {
@@ -16,20 +17,47 @@ gsap.registerPlugin(ScrollTrigger)
 
 const pageRoot = ref(null)
 const isMobileView = window.matchMedia('(max-width: 1000px)').matches
-const pageConfig = moviesPageConfig
-const randomCardPalette = ['#ff2d55', '#ff6a00', '#ffd60a', '#00c853', '#00b8ff', '#3a86ff', '#7b2cff', '#ff006e', '#06d6a0', '#ff3b30']
-const randomizedCardColors = pageConfig.movies.map((_, idx) => randomCardPalette[(idx * 7 + 3) % randomCardPalette.length])
+
+const data = reactive({
+  glassTheme: { ...moviesPageConfig.glassTheme },
+  movies: moviesPageConfig.movies.map(m => ({ ...m })),
+})
+
+async function fetchContent() {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 3000)
+  try {
+    const res = await fetch('/api/home-content/public', { signal: ctrl.signal })
+    clearTimeout(timer)
+    if (!res.ok) return
+    const json = await res.json()
+    if (!json.data || !json.data.length) return
+    const item = json.data.find(i => i.sectionKey === 'musics/movie-cards')
+    if (!item) return
+    const d = JSON.parse(item.contentJson)
+    if (d.glassTheme) {
+      if (d.glassTheme.titleColor != null) data.glassTheme.titleColor = d.glassTheme.titleColor
+      if (d.glassTheme.metaColor != null) data.glassTheme.metaColor = d.glassTheme.metaColor
+    }
+    if (d.movies) d.movies.forEach((m, i) => {
+      if (i < data.movies.length) {
+        if (m.file != null) data.movies[i].file = m.file
+        if (m.title != null) data.movies[i].title = m.title
+        if (m.meta != null) data.movies[i].meta = m.meta
+        if (m.quote != null) data.movies[i].quote = m.quote
+      }
+    })
+  } catch { /* use defaults */ }
+}
 
 const movieCards = computed(() =>
-  pageConfig.movies.map((item, idx) => ({
-    src: `/media-movies/${item.file}`,
+  data.movies.map((item) => ({
+    src: proxyUrl(item.file),
     title: item.title,
     meta: item.meta,
     quote: item.quote,
-    bg: randomizedCardColors[idx],
-    titleColor: pageConfig.glassTheme.titleColor,
-    metaColor: pageConfig.glassTheme.metaColor,
-    glow: pageConfig.glassTheme.glow,
+    titleColor: data.glassTheme.titleColor,
+    metaColor: data.glassTheme.metaColor,
   })),
 )
 
@@ -37,7 +65,9 @@ let lenis = null
 let tickerFn = null
 let cardsTrigger = null
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchContent()
+
   if (!props.embedded) {
     lenis = new Lenis({
       lerp: isMobileView ? 0.12 : 0.075,
@@ -140,7 +170,7 @@ onBeforeUnmount(() => {
         class="card"
         v-for="(item, idx) in movieCards"
         :key="item.src"
-        :style="{ '--card-bg': item.bg, '--title-color': item.titleColor, '--meta-color': item.metaColor, '--card-glow': item.glow }"
+        :style="{ '--title-color': item.titleColor, '--meta-color': item.metaColor }"
       >
         <div class="poster-wrap">
           <img :src="item.src" :alt="item.title" />
@@ -220,7 +250,7 @@ onBeforeUnmount(() => {
   color: #fff;
   transform-origin: center bottom;
   transform-style: preserve-3d;
-  background: var(--card-bg, #111111);
+  background: #111111;
   box-shadow: 0 22px 80px rgb(0 0 0 / 0.22), inset 0 0 0 1px rgb(255 255 255 / 0.05);
 }
 

@@ -1,886 +1,668 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { subscribeRouteRevealStart } from './ui/routeCurtainController'
-import StoryScroll from './ui/StoryScroll.vue'
-import { moviesPageConfig } from '../config/siteContent'
+import { onMounted, onBeforeUnmount } from 'vue'
+import gsap from 'gsap'
+import * as THREE from 'three'
 
-const sliderData = moviesPageConfig.sliderItems
-
-const rootRef = ref(null)
-const trackRef = ref(null)
-const activeSlideIndex = ref(0)
-
-const totalMoviesLabel = computed(() => String(totalSlideCount).padStart(2, '0'))
-const activeMovie = computed(() => sliderData[activeSlideIndex.value] ?? sliderData[0])
-const activeMovieIndexLabel = computed(() => String(activeSlideIndex.value + 1).padStart(2, '0'))
-
-/** 仅精细指针设备显示自定义圆球（不替代系统光标）；pointer 为光标，ring 为滞后追赶 */
-const cursorRingEnabled = ref(false)
-const showCursorRing = ref(false)
-const ringOverSlide = ref(false)
-const pointerX = ref(0)
-const pointerY = ref(0)
-const ringX = ref(0)
-const ringY = ref(0)
-let cursorRingNeedsSnap = true
-
-const RING_FOLLOW = {
-  /** 距离越远系数越大，便于追上快速移动 */
-  K_MIN: 0.1,
-  K_MAX: 0.42,
-  DIST_SCALE: 0.0024,
-  SNAP_EPS2: 0.25,
+const SLIDER_CONFIG = {
+  settings: {
+    transitionDuration: 2.5, autoSlideSpeed: 5000, currentEffect: "glass", currentEffectPreset: "Default",
+    globalIntensity: 1.0, speedMultiplier: 1.0, distortionStrength: 1.0, colorEnhancement: 1.0,
+    glassRefractionStrength: 1.0, glassChromaticAberration: 1.0, glassBubbleClarity: 1.0, glassEdgeGlow: 1.0, glassLiquidFlow: 1.0,
+    frostIntensity: 1.5, frostCrystalSize: 1.0, frostIceCoverage: 1.0, frostTemperature: 1.0, frostTexture: 1.0,
+    rippleFrequency: 25.0, rippleAmplitude: 0.08, rippleWaveSpeed: 1.0, rippleRippleCount: 1.0, rippleDecay: 1.0,
+    plasmaIntensity: 1.2, plasmaSpeed: 0.8, plasmaEnergyIntensity: 0.4, plasmaContrastBoost: 0.3, plasmaTurbulence: 1.0,
+    timeshiftDistortion: 1.6, timeshiftBlur: 1.5, timeshiftFlow: 1.4, timeshiftChromatic: 1.5, timeshiftTurbulence: 1.4,
+  },
+  effectPresets: {
+    glass: {
+      Subtle: { glassRefractionStrength: 0.6, glassChromaticAberration: 0.5, glassBubbleClarity: 1.3, glassEdgeGlow: 0.7, glassLiquidFlow: 0.8 },
+      Default: { glassRefractionStrength: 1.0, glassChromaticAberration: 1.0, glassBubbleClarity: 1.0, glassEdgeGlow: 1.0, glassLiquidFlow: 1.0 },
+      Crystal: { glassRefractionStrength: 1.5, glassChromaticAberration: 1.8, glassBubbleClarity: 0.7, glassEdgeGlow: 1.4, glassLiquidFlow: 0.5 },
+      Liquid: { glassRefractionStrength: 0.8, glassChromaticAberration: 0.4, glassBubbleClarity: 1.2, glassEdgeGlow: 0.8, glassLiquidFlow: 1.8 },
+    },
+    frost: {
+      Light: { frostIntensity: 0.8, frostCrystalSize: 1.3, frostIceCoverage: 0.6, frostTemperature: 0.7, frostTexture: 0.8 },
+      Default: { frostIntensity: 1.5, frostCrystalSize: 1.0, frostIceCoverage: 1.0, frostTemperature: 1.0, frostTexture: 1.0 },
+      Heavy: { frostIntensity: 2.2, frostCrystalSize: 0.7, frostIceCoverage: 1.4, frostTemperature: 1.5, frostTexture: 1.3 },
+      Arctic: { frostIntensity: 2.8, frostCrystalSize: 0.5, frostIceCoverage: 1.8, frostTemperature: 2.0, frostTexture: 1.6 },
+    },
+    ripple: {
+      Gentle: { rippleFrequency: 15.0, rippleAmplitude: 0.05, rippleWaveSpeed: 0.7, rippleRippleCount: 0.8, rippleDecay: 1.2 },
+      Default: { rippleFrequency: 25.0, rippleAmplitude: 0.08, rippleWaveSpeed: 1.0, rippleRippleCount: 1.0, rippleDecay: 1.0 },
+      Strong: { rippleFrequency: 35.0, rippleAmplitude: 0.12, rippleWaveSpeed: 1.4, rippleRippleCount: 1.3, rippleDecay: 0.8 },
+      Tsunami: { rippleFrequency: 45.0, rippleAmplitude: 0.18, rippleWaveSpeed: 1.8, rippleRippleCount: 1.6, rippleDecay: 0.6 },
+    },
+    plasma: {
+      Calm: { plasmaIntensity: 0.8, plasmaSpeed: 0.5, plasmaEnergyIntensity: 0.2, plasmaContrastBoost: 0.1, plasmaTurbulence: 0.6 },
+      Default: { plasmaIntensity: 1.2, plasmaSpeed: 0.8, plasmaEnergyIntensity: 0.4, plasmaContrastBoost: 0.3, plasmaTurbulence: 1.0 },
+      Storm: { plasmaIntensity: 1.8, plasmaSpeed: 1.3, plasmaEnergyIntensity: 0.7, plasmaContrastBoost: 0.5, plasmaTurbulence: 1.5 },
+      Nuclear: { plasmaIntensity: 2.5, plasmaSpeed: 1.8, plasmaEnergyIntensity: 1.0, plasmaContrastBoost: 0.8, plasmaTurbulence: 2.0 },
+    },
+    timeshift: {
+      Subtle: { timeshiftDistortion: 0.5, timeshiftBlur: 0.6, timeshiftFlow: 0.5, timeshiftChromatic: 0.4, timeshiftTurbulence: 0.6 },
+      Default: { timeshiftDistortion: 1.6, timeshiftBlur: 1.5, timeshiftFlow: 1.4, timeshiftChromatic: 1.5, timeshiftTurbulence: 1.4 },
+      Intense: { timeshiftDistortion: 2.2, timeshiftBlur: 2.0, timeshiftFlow: 2.0, timeshiftChromatic: 2.2, timeshiftTurbulence: 2.0 },
+      Dreamlike: { timeshiftDistortion: 2.8, timeshiftBlur: 2.5, timeshiftFlow: 2.5, timeshiftChromatic: 2.6, timeshiftTurbulence: 2.5 },
+    },
+  },
 }
 
-const config = {
-  ENTRANCE_DURATION: 1200,
-  ENTRY_DRIFT_SPEED: 0.2,
-  ACTIVE_SLIDE_UPDATE_INTERVAL: 90,
-  DRAG_LERP: 0.22,
-  RELEASE_LERP: 0.12,
-  HOVER_DECEL: 0.085,
-  HOVER_ACCEL: 0.045,
+let currentSlideIndex = 0
+let isTransitioning = false
+let shaderMaterial, renderer, scene, camera
+let slideTextures = []
+let texturesLoaded = false
+let autoSlideTimer = null
+let progressAnimation = null
+let sliderEnabled = false
+
+const SLIDE_DURATION = () => SLIDER_CONFIG.settings.autoSlideSpeed
+const PROGRESS_UPDATE_INTERVAL = 50
+const TRANSITION_DURATION = () => SLIDER_CONFIG.settings.transitionDuration
+
+import { proxyUrl } from '../utils/ossProxy'
+
+const slides = [
+  { title: "Ethereal Glow", description: "A soft, radiant light that illuminates the soul.", media: "/media-movies/picture1.png" },
+  { title: "Rose Mirage", description: "Lost in a desert of blooming dreams and endless horizons.", media: "/media-movies/picture2.png" },
+  { title: "Velvet Mystique", description: "Wrapped in the deep, luxurious embrace of the night.", media: "/media-movies/picture3.png" },
+  { title: "Golden Hour", description: "That fleeting moment when the world is dipped in gold.", media: "/media-movies/picture4.png" },
+  { title: "Midnight Dreams", description: "Where reality fades and imagination takes flight.", media: "/media-movies/picture5.png" },
+  { title: "Silver Light", description: "A cool, metallic shimmer reflecting the urban pulse.", media: "/media-movies/picture6.png" },
+]
+
+
+const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`
+
+const fragmentShader = `
+uniform sampler2D uTexture1, uTexture2;
+uniform float uProgress;
+uniform vec2 uResolution, uTexture1Size, uTexture2Size;
+uniform int uEffectType;
+uniform float uGlobalIntensity, uSpeedMultiplier, uDistortionStrength, uColorEnhancement;
+uniform float uGlassRefractionStrength, uGlassChromaticAberration, uGlassBubbleClarity, uGlassEdgeGlow, uGlassLiquidFlow;
+uniform float uFrostIntensity, uFrostCrystalSize, uFrostIceCoverage, uFrostTemperature, uFrostTexture;
+uniform float uRippleFrequency, uRippleAmplitude, uRippleWaveSpeed, uRippleRippleCount, uRippleDecay;
+uniform float uPlasmaIntensity, uPlasmaSpeed, uPlasmaEnergyIntensity, uPlasmaContrastBoost, uPlasmaTurbulence;
+uniform float uTimeshiftDistortion, uTimeshiftBlur, uTimeshiftFlow, uTimeshiftChromatic, uTimeshiftTurbulence;
+varying vec2 vUv;
+
+vec2 getCoverUV(vec2 uv, vec2 textureSize) {
+    vec2 s = uResolution / textureSize;
+    float scale = max(s.x, s.y);
+    vec2 scaledSize = textureSize * scale;
+    vec2 offset = (uResolution - scaledSize) * 0.5;
+    return (uv * uResolution - offset) / scaledSize;
 }
 
-const totalSlideCount = sliderData.length
+float noise(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
-const state = {
-  currentX: 0,
-  targetX: 0,
-  slideWidth: 390,
-  slides: [],
-  isDragging: false,
-  hoveredSlideCount: 0,
-  startX: 0,
-  lastX: 0,
-  lastMouseX: 0,
-  lastScrollTime: Date.now(),
-  isMoving: false,
-  velocity: 0,
-  lastCurrentX: 0,
-  dragDistance: 0,
-  hasActuallyDragged: false,
-  isMobile: false,
-  entranceProgress: 0,
-  entranceStartAt: 0,
-  autoSpeed: 0,
-  renderedSpeed: 0,
-  lastFrameAt: 0,
-  lastActiveSlideUpdateAt: 0,
+vec4 glassEffect(vec2 uv, float progress) {
+    float time = progress * 5.0 * uSpeedMultiplier;
+    vec2 uv1 = getCoverUV(uv, uTexture1Size); vec2 uv2 = getCoverUV(uv, uTexture2Size);
+    float maxR = length(uResolution) * 0.85; float br = progress * maxR;
+    vec2 p = uv * uResolution; vec2 c = uResolution * 0.5;
+    float d = length(p - c); float nd = d / max(br, 0.001);
+    float param = smoothstep(br + 3.0, br - 3.0, d);
+    vec4 img;
+    if (param > 0.0) {
+        float ro = 0.08 * uGlassRefractionStrength * uDistortionStrength * uGlobalIntensity * pow(smoothstep(0.3 * uGlassBubbleClarity, 1.0, nd), 1.5);
+        vec2 dir = (d > 0.0) ? (p - c) / d : vec2(0.0);
+        vec2 distUV = uv2 - dir * ro;
+        distUV += vec2(sin(time + nd * 10.0), cos(time * 0.8 + nd * 8.0)) * 0.015 * uGlassLiquidFlow * uSpeedMultiplier * nd * param;
+        float ca = 0.02 * uGlassChromaticAberration * uGlobalIntensity * pow(smoothstep(0.3, 1.0, nd), 1.2);
+        img = vec4(texture2D(uTexture2, distUV + dir * ca * 1.2).r, texture2D(uTexture2, distUV + dir * ca * 0.2).g, texture2D(uTexture2, distUV - dir * ca * 0.8).b, 1.0);
+        if (uGlassEdgeGlow > 0.0) {
+            float rim = smoothstep(0.95, 1.0, nd) * (1.0 - smoothstep(1.0, 1.01, nd));
+            img.rgb += rim * 0.08 * uGlassEdgeGlow * uGlobalIntensity;
+        }
+    } else { img = texture2D(uTexture2, uv2); }
+    vec4 oldImg = texture2D(uTexture1, uv1);
+    if (progress > 0.95) img = mix(img, texture2D(uTexture2, uv2), (progress - 0.95) / 0.05);
+    return mix(oldImg, img, param);
 }
 
-let rafId = 0
-let unsubscribeRevealStart = null
-const cleanups = []
+vec4 frostEffect(vec2 uv, float progress) { return mix(texture2D(uTexture1, getCoverUV(uv, uTexture1Size)), texture2D(uTexture2, getCoverUV(uv, uTexture2Size)), progress); }
+vec4 rippleEffect(vec2 uv, float progress) { return mix(texture2D(uTexture1, getCoverUV(uv, uTexture1Size)), texture2D(uTexture2, getCoverUV(uv, uTexture2Size)), progress); }
+vec4 plasmaEffect(vec2 uv, float progress) { return mix(texture2D(uTexture1, getCoverUV(uv, uTexture1Size)), texture2D(uTexture2, getCoverUV(uv, uTexture2Size)), progress); }
+vec4 timeshiftEffect(vec2 uv, float progress) { return mix(texture2D(uTexture1, getCoverUV(uv, uTexture1Size)), texture2D(uTexture2, getCoverUV(uv, uTexture2Size)), progress); }
 
-function checkMobile() {
-  state.isMobile = window.innerWidth < 1000
+void main() {
+    if (uEffectType == 0) gl_FragColor = glassEffect(vUv, uProgress);
+    else if (uEffectType == 1) gl_FragColor = frostEffect(vUv, uProgress);
+    else if (uEffectType == 2) gl_FragColor = rippleEffect(vUv, uProgress);
+    else if (uEffectType == 3) gl_FragColor = plasmaEffect(vUv, uProgress);
+    else gl_FragColor = timeshiftEffect(vUv, uProgress);
 }
+`
 
-function createSlideElement(index) {
-  const slide = document.createElement('div')
-  slide.className = 'slide'
+const getEffectIndex = (name) => ({ glass: 0, frost: 1, ripple: 2, plasma: 3, timeshift: 4 })[name] || 0
 
-  if (state.isMobile) {
-    slide.style.width = '210px'
-    slide.style.height = '300px'
+function updateShaderUniforms() {
+  if (!shaderMaterial) return
+  const s = SLIDER_CONFIG.settings
+  const u = shaderMaterial.uniforms
+  for (const key in s) {
+    const uName = 'u' + key.charAt(0).toUpperCase() + key.slice(1)
+    if (u[uName]) u[uName].value = s[key]
   }
+  u.uEffectType.value = getEffectIndex(s.currentEffect)
+}
 
-  slide.addEventListener('mouseenter', handleSlideMouseEnter)
-  slide.addEventListener('mouseleave', handleSlideMouseLeave)
+function splitText(text) {
+  return text.split('').map(char => `<span style="display: inline-block; opacity: 0;">${char === ' ' ? '&nbsp;' : char}</span>`).join('')
+}
 
-  const imageContainer = document.createElement('div')
-  imageContainer.className = 'slide-image'
+function updateContent(idx) {
+  const titleEl = document.getElementById('mainTitle')
+  const descEl = document.getElementById('mainDesc')
+  if (!titleEl || !descEl) return
 
-  const img = document.createElement('img')
-  const slideDataIndex = index % totalSlideCount
-  const slideData = sliderData[slideDataIndex]
-  slide.dataset.movieIndex = String(slideDataIndex)
-  img.src = slideData.img
-  img.alt = slideData.title
-  img.loading = 'lazy'
-  img.decoding = 'async'
+  gsap.to(titleEl.children, { y: -20, opacity: 0, duration: 0.5, stagger: 0.02, ease: "power2.in" })
+  gsap.to(descEl, { y: -10, opacity: 0, duration: 0.4, ease: "power2.in" })
 
-  const overlay = document.createElement('div')
-  overlay.className = 'slide-overlay'
+  setTimeout(() => {
+    titleEl.innerHTML = splitText(slides[idx].title)
+    descEl.textContent = slides[idx].description
 
-  const year = document.createElement('p')
-  year.className = 'project-year'
-  year.textContent = slideData.year
+    gsap.set(titleEl.children, { opacity: 0 })
+    gsap.set(descEl, { y: 20, opacity: 0 })
 
-  const centerTitle = document.createElement('p')
-  centerTitle.className = 'project-title-center'
-  centerTitle.textContent = slideData.title
-
-  const title = document.createElement('p')
-  title.className = 'project-title'
-  title.textContent = slideData.title
-
-  const detail = document.createElement('p')
-  detail.className = 'project-detail'
-  detail.textContent = `${String(slideDataIndex + 1).padStart(2, '0')} / ${String(totalSlideCount).padStart(2, '0')}`
-
-  slide.addEventListener('click', (event) => {
-    event.preventDefault()
-    if (state.dragDistance < 10 && !state.hasActuallyDragged) {
-      window.open(slideData.url, '_blank', 'noopener,noreferrer')
+    const children = titleEl.children
+    switch (idx) {
+      case 0:
+        gsap.set(children, { y: 20 })
+        gsap.to(children, { y: 0, opacity: 1, duration: 0.8, stagger: 0.03, ease: "power3.out" })
+        gsap.to(descEl, { y: 0, opacity: 1, duration: 0.8, delay: 0.2, ease: "power3.out" })
+        break
+      case 1:
+        gsap.set(children, { y: -20 })
+        gsap.to(children, { y: 0, opacity: 1, duration: 0.8, stagger: 0.03, ease: "back.out(1.7)" })
+        gsap.to(descEl, { y: 0, opacity: 1, duration: 0.8, delay: 0.2, ease: "power3.out" })
+        break
+      case 2:
+        gsap.set(children, { filter: "blur(10px)", scale: 1.5, y: 0 })
+        gsap.to(children, { filter: "blur(0px)", scale: 1, opacity: 1, duration: 1, stagger: { amount: 0.5, from: "random" }, ease: "power2.out" })
+        gsap.to(descEl, { y: 0, opacity: 1, duration: 1, delay: 0.3, ease: "power2.out" })
+        break
+      case 3:
+        gsap.set(children, { scale: 0, y: 0 })
+        gsap.to(children, { scale: 1, opacity: 1, duration: 0.6, stagger: 0.05, ease: "back.out(1.5)" })
+        gsap.to(descEl, { y: 0, opacity: 1, duration: 0.8, delay: 0.2, ease: "power3.out" })
+        break
+      case 4:
+        gsap.set(children, { rotationX: 90, y: 0, transformOrigin: "50% 50%" })
+        gsap.to(children, { rotationX: 0, opacity: 1, duration: 0.8, stagger: 0.04, ease: "power2.out" })
+        gsap.to(descEl, { y: 0, opacity: 1, duration: 0.8, delay: 0.2, ease: "power2.out" })
+        break
+      case 5:
+        gsap.set(children, { x: 30, y: 0 })
+        gsap.to(children, { x: 0, opacity: 1, duration: 0.8, stagger: 0.03, ease: "power3.out" })
+        gsap.to(descEl, { y: 0, opacity: 1, duration: 0.8, delay: 0.2, ease: "power3.out" })
+        break
+      default:
+        gsap.set(children, { y: 20 })
+        gsap.to(children, { y: 0, opacity: 1, duration: 0.8, stagger: 0.03, ease: "power3.out" })
+        gsap.to(descEl, { y: 0, opacity: 1, duration: 0.8, delay: 0.2, ease: "power3.out" })
     }
-  })
-
-  slide.appendChild(year)
-  slide.appendChild(centerTitle)
-  overlay.appendChild(title)
-  overlay.appendChild(detail)
-  imageContainer.appendChild(img)
-  slide.appendChild(imageContainer)
-  slide.appendChild(overlay)
-
-  return slide
+  }, 500)
 }
 
-function resetEntrySlide() {
-  const startOffset = -(totalSlideCount * state.slideWidth * 2)
-  state.currentX = startOffset
-  state.targetX = startOffset
-  state.lastCurrentX = state.currentX
-  state.entranceProgress = 0
-  state.entranceStartAt = performance.now()
-  state.lastFrameAt = state.entranceStartAt
-  state.autoSpeed = config.ENTRY_DRIFT_SPEED
-  state.renderedSpeed = config.ENTRY_DRIFT_SPEED
-  document.documentElement.style.setProperty('--movies-card-entrance-top-inset', '90%')
-}
+function navigateToSlide(targetIndex) {
+  if (isTransitioning || targetIndex === currentSlideIndex) return
+  stopAutoSlideTimer()
+  quickResetProgress(currentSlideIndex)
 
-function initializeSlides() {
-  const track = trackRef.value
-  if (!track) return
+  const currentTexture = slideTextures[currentSlideIndex]
+  const targetTexture = slideTextures[targetIndex]
+  if (!currentTexture || !targetTexture) return
 
-  track.innerHTML = ''
-  state.slides = []
+  isTransitioning = true
+  shaderMaterial.uniforms.uTexture1.value = currentTexture
+  shaderMaterial.uniforms.uTexture2.value = targetTexture
+  shaderMaterial.uniforms.uTexture1Size.value = currentTexture.userData.size
+  shaderMaterial.uniforms.uTexture2Size.value = targetTexture.userData.size
 
-  checkMobile()
+  updateContent(targetIndex)
 
-  const copies = 6
-  const totalSlides = totalSlideCount * copies
+  currentSlideIndex = targetIndex
+  updateCounter(currentSlideIndex)
+  updateNavigationState(currentSlideIndex)
 
-  for (let i = 0; i < totalSlides; i += 1) {
-    const slide = createSlideElement(i)
-    track.appendChild(slide)
-    state.slides.push(slide)
-  }
-
-  const firstSlide = state.slides[0]
-  if (firstSlide) {
-    const computedStyle = window.getComputedStyle(firstSlide)
-    const marginLeft = Number.parseFloat(computedStyle.marginLeft) || 0
-    const marginRight = Number.parseFloat(computedStyle.marginRight) || 0
-    state.slideWidth = firstSlide.offsetWidth + marginLeft + marginRight
-  }
-
-  resetEntrySlide()
-}
-
-function updateSlidePositions() {
-  const track = trackRef.value
-  if (!track) return
-
-  const sequenceWidth = state.slideWidth * totalSlideCount
-
-  if (state.currentX > -sequenceWidth * 1) {
-    state.currentX -= sequenceWidth
-    state.targetX -= sequenceWidth
-  } else if (state.currentX < -sequenceWidth * 4) {
-    state.currentX += sequenceWidth
-    state.targetX += sequenceWidth
-  }
-
-  track.style.transform = `translate3d(${state.currentX}px, 0, 0)`
-}
-
-function updateParallax() {
-  const viewportCenter = window.innerWidth / 2
-  const easedEntrance = 1 - (1 - state.entranceProgress) ** 3
-  const imageScale = 7 - (4.82 * easedEntrance)
-
-  state.slides.forEach((slide) => {
-    const img = slide.querySelector('img')
-    if (!img) return
-
-    const slideRect = slide.getBoundingClientRect()
-    if (slideRect.right < -500 || slideRect.left > window.innerWidth + 500) return
-
-    const slideCenter = slideRect.left + slideRect.width / 2
-    const distanceFromCenter = slideCenter - viewportCenter
-    const parallaxOffset = distanceFromCenter * -0.25
-
-    img.style.transform = `translateX(${parallaxOffset}px) scale(${imageScale})`
-  })
-}
-
-function updateMovingState() {
-  state.velocity = Math.abs(state.currentX - state.lastCurrentX)
-  state.lastCurrentX = state.currentX
-
-  const isSlowEnough = state.velocity < 0.1
-  const hasBeenStillLongEnough = Date.now() - state.lastScrollTime > 200
-  state.isMoving = state.hasActuallyDragged || !isSlowEnough || !hasBeenStillLongEnough
-
-  document.documentElement.style.setProperty('--slider-moving', state.isMoving ? '1' : '0')
-}
-
-function updateEntranceAnimation() {
-  if (state.entranceProgress >= 1) return
-
-  const elapsed = performance.now() - state.entranceStartAt
-  const rawProgress = Math.min(elapsed / config.ENTRANCE_DURATION, 1)
-  state.entranceProgress = rawProgress
-
-  const easedProgress = 1 - (1 - rawProgress) ** 3
-  const topInset = 90 - (90 * easedProgress)
-
-  document.documentElement.style.setProperty('--movies-card-entrance-top-inset', `${topInset.toFixed(2)}%`)
-}
-
-function updateActiveSlide(force = false) {
-  if (!state.slides.length) return
-
-  const now = performance.now()
-  if (!force && now - state.lastActiveSlideUpdateAt < config.ACTIVE_SLIDE_UPDATE_INTERVAL) {
-    return
-  }
-
-  state.lastActiveSlideUpdateAt = now
-
-  const viewportCenter = window.innerWidth / 2
-  let bestIndex = activeSlideIndex.value
-  let minDistance = Number.POSITIVE_INFINITY
-
-  state.slides.forEach((slide) => {
-    const rect = slide.getBoundingClientRect()
-    if (rect.right < 0 || rect.left > window.innerWidth) return
-
-    const slideCenter = rect.left + rect.width / 2
-    const distance = Math.abs(slideCenter - viewportCenter)
-
-    if (distance < minDistance) {
-      minDistance = distance
-      bestIndex = Number.parseInt(slide.dataset.movieIndex || '0', 10)
+  gsap.fromTo(shaderMaterial.uniforms.uProgress,
+    { value: 0 },
+    {
+      value: 1,
+      duration: TRANSITION_DURATION(),
+      ease: "power2.inOut",
+      onComplete: () => {
+        shaderMaterial.uniforms.uProgress.value = 0
+        shaderMaterial.uniforms.uTexture1.value = targetTexture
+        shaderMaterial.uniforms.uTexture1Size.value = targetTexture.userData.size
+        isTransitioning = false
+        safeStartTimer(100)
+      }
     }
-  })
-
-  activeSlideIndex.value = Number.isNaN(bestIndex) ? 0 : bestIndex
-}
-
-function animate() {
-  const now = performance.now()
-  const deltaMs = state.lastFrameAt ? (now - state.lastFrameAt) : 16.67
-  state.lastFrameAt = now
-
-  updateEntranceAnimation()
-
-  if (state.isDragging) {
-    state.currentX += (state.targetX - state.currentX) * config.DRAG_LERP
-  } else {
-    state.autoSpeed = config.ENTRY_DRIFT_SPEED
-    const targetSpeed = state.hoveredSlideCount > 0 ? 0 : state.autoSpeed
-    const speedLerp = state.hoveredSlideCount > 0 ? config.HOVER_DECEL : config.HOVER_ACCEL
-    state.renderedSpeed += (targetSpeed - state.renderedSpeed) * speedLerp
-    state.currentX -= state.renderedSpeed * deltaMs
-    state.targetX = state.currentX
-  }
-
-  updateMovingState()
-  updateSlidePositions()
-  updateActiveSlide()
-  updateParallax()
-  stepCursorRingFollow()
-  rafId = requestAnimationFrame(animate)
-}
-
-function handleTouchStart(event) {
-  state.isDragging = true
-  state.startX = event.touches[0].clientX
-  state.lastX = state.targetX
-  state.dragDistance = 0
-  state.hasActuallyDragged = false
-  state.lastScrollTime = Date.now()
-}
-
-function handleTouchMove(event) {
-  if (!state.isDragging) return
-
-  const deltaX = (event.touches[0].clientX - state.startX) * 1.5
-  state.targetX = state.lastX + deltaX
-  state.dragDistance = Math.abs(deltaX)
-
-  if (state.dragDistance > 5) {
-    state.hasActuallyDragged = true
-  }
-
-  state.lastScrollTime = Date.now()
-}
-
-function handleTouchEnd() {
-  state.isDragging = false
-  window.setTimeout(() => {
-    state.hasActuallyDragged = false
-  }, 100)
-}
-
-function handleMouseDown(event) {
-  event.preventDefault()
-  state.isDragging = true
-  state.startX = event.clientX
-  state.lastMouseX = event.clientX
-  state.lastX = state.targetX
-  state.dragDistance = 0
-  state.hasActuallyDragged = false
-  state.lastScrollTime = Date.now()
-}
-
-function handleMouseMove(event) {
-  if (!state.isDragging) return
-
-  event.preventDefault()
-  const deltaX = (event.clientX - state.lastMouseX) * 2
-  state.targetX += deltaX
-  state.lastMouseX = event.clientX
-  state.dragDistance += Math.abs(deltaX)
-
-  if (state.dragDistance > 5) {
-    state.hasActuallyDragged = true
-  }
-
-  state.lastScrollTime = Date.now()
-}
-
-function handleMouseUp() {
-  state.isDragging = false
-  state.lastX = state.targetX
-  window.setTimeout(() => {
-    state.hasActuallyDragged = false
-  }, 100)
-}
-
-function handleSlideMouseEnter() {
-  state.hoveredSlideCount += 1
-}
-
-function handleSlideMouseLeave() {
-  state.hoveredSlideCount = Math.max(0, state.hoveredSlideCount - 1)
-}
-
-function handleResize() {
-  initializeSlides()
-}
-
-function initializeEventListeners() {
-  const slider = rootRef.value?.querySelector('.slider')
-  if (!slider) return
-
-  slider.addEventListener('touchstart', handleTouchStart)
-  slider.addEventListener('touchmove', handleTouchMove)
-  slider.addEventListener('touchend', handleTouchEnd)
-  slider.addEventListener('mousedown', handleMouseDown)
-  slider.addEventListener('dragstart', (event) => event.preventDefault())
-
-  document.addEventListener('mousemove', handleMouseMove)
-  document.addEventListener('mouseup', handleMouseUp)
-  window.addEventListener('resize', handleResize)
-
-  cleanups.push(() => {
-    slider.removeEventListener('touchstart', handleTouchStart)
-    slider.removeEventListener('touchmove', handleTouchMove)
-    slider.removeEventListener('touchend', handleTouchEnd)
-    slider.removeEventListener('mousedown', handleMouseDown)
-    document.removeEventListener('mousemove', handleMouseMove)
-    document.removeEventListener('mouseup', handleMouseUp)
-    window.removeEventListener('resize', handleResize)
-  })
-}
-
-function initializeSlider() {
-  initializeSlides()
-  initializeEventListeners()
-  resetEntrySlide()
-  updateActiveSlide(true)
-  animate()
-}
-
-function stepCursorRingFollow() {
-  if (!cursorRingEnabled.value || !showCursorRing.value) return
-  const tx = pointerX.value
-  const ty = pointerY.value
-  const dx = tx - ringX.value
-  const dy = ty - ringY.value
-  const distSq = dx * dx + dy * dy
-  if (distSq < RING_FOLLOW.SNAP_EPS2) {
-    ringX.value = tx
-    ringY.value = ty
-    return
-  }
-  const dist = Math.sqrt(distSq)
-  const k = Math.min(
-    RING_FOLLOW.K_MAX,
-    RING_FOLLOW.K_MIN + dist * RING_FOLLOW.DIST_SCALE,
   )
-  ringX.value += dx * k
-  ringY.value += dy * k
 }
 
-function onWindowMouseMoveForRing(event) {
-  pointerX.value = event.clientX
-  pointerY.value = event.clientY
-  if (cursorRingNeedsSnap) {
-    ringX.value = event.clientX
-    ringY.value = event.clientY
-    cursorRingNeedsSnap = false
-  }
-  const el = event.target
-  if (el && typeof el.closest === 'function') {
-    const isOverSlide = Boolean(el.closest('.slide') && rootRef.value?.contains(el.closest('.slide')))
-    const isOverNav = Boolean(el.closest('.hero-nav'))
-    ringOverSlide.value = isOverSlide || isOverNav
-  } else {
-    ringOverSlide.value = false
-  }
-  showCursorRing.value = true
+function handleSlideChange() {
+  if (isTransitioning || !texturesLoaded || !sliderEnabled) return
+  navigateToSlide((currentSlideIndex + 1) % slides.length)
 }
 
-function hideCursorRing() {
-  showCursorRing.value = false
-  cursorRingNeedsSnap = true
-}
-
-function initCursorRing() {
-  if (!window.matchMedia('(pointer: fine)').matches) {
-    cursorRingEnabled.value = false
-    return
-  }
-  cursorRingEnabled.value = true
-  window.addEventListener('mousemove', onWindowMouseMoveForRing, { passive: true })
-  window.addEventListener('blur', hideCursorRing)
-  window.addEventListener('mouseout', onWindowMouseOutForRing, { passive: true })
-  cleanups.push(() => {
-    window.removeEventListener('mousemove', onWindowMouseMoveForRing)
-    window.removeEventListener('blur', hideCursorRing)
-    window.removeEventListener('mouseout', onWindowMouseOutForRing)
+function createSlidesNavigation() {
+  const nav = document.getElementById("slidesNav")
+  if (!nav) return
+  nav.innerHTML = ""
+  slides.forEach((slide, i) => {
+    const item = document.createElement("div")
+    item.className = `slide-nav-item${i === 0 ? " active" : ""}`
+    item.dataset.slideIndex = String(i)
+    item.innerHTML = `<div class="slide-progress-line"><div class="slide-progress-fill"></div></div><div class="slide-nav-title">${slide.title}</div>`
+    item.addEventListener("click", (e) => {
+      e.stopPropagation()
+      if (!isTransitioning && i !== currentSlideIndex) {
+        stopAutoSlideTimer()
+        quickResetProgress(currentSlideIndex)
+        navigateToSlide(i)
+      }
+    })
+    nav.appendChild(item)
   })
 }
 
-function onWindowMouseOutForRing(event) {
-  const rel = event.relatedTarget
-  if (rel == null || (rel instanceof Node && !document.documentElement.contains(rel))) {
-    hideCursorRing()
+function updateNavigationState(idx) {
+  document.querySelectorAll(".slide-nav-item").forEach((el, i) => el.classList.toggle("active", i === idx))
+}
+
+function updateSlideProgress(idx, prog) {
+  const el = document.querySelectorAll(".slide-nav-item")[idx]?.querySelector(".slide-progress-fill")
+  if (el) { el.style.width = `${prog}%` }
+}
+
+function fadeSlideProgress(idx) {
+  const el = document.querySelectorAll(".slide-nav-item")[idx]?.querySelector(".slide-progress-fill")
+  if (el) { el.style.opacity = '0'; setTimeout(() => el.style.width = "0%", 300) }
+}
+
+function quickResetProgress(idx) {
+  const el = document.querySelectorAll(".slide-nav-item")[idx]?.querySelector(".slide-progress-fill")
+  if (el) { el.style.transition = "width 0.2s ease-out"; el.style.width = "0%"; setTimeout(() => el.style.transition = "width 0.1s ease, opacity 0.3s ease", 200) }
+}
+
+function updateCounter(idx) {
+  const sn = document.getElementById("slideNumber")
+  if (sn) sn.textContent = String(idx + 1).padStart(2, "0")
+  const st = document.getElementById("slideTotal")
+  if (st) st.textContent = String(slides.length).padStart(2, "0")
+}
+
+function startAutoSlideTimer() {
+  if (!texturesLoaded || !sliderEnabled) return
+  stopAutoSlideTimer()
+  let progress = 0
+  const increment = (100 / SLIDE_DURATION()) * PROGRESS_UPDATE_INTERVAL
+  progressAnimation = setInterval(() => {
+    if (!sliderEnabled) { stopAutoSlideTimer(); return }
+    progress += increment
+    updateSlideProgress(currentSlideIndex, progress)
+    if (progress >= 100) {
+      clearInterval(progressAnimation)
+      progressAnimation = null
+      fadeSlideProgress(currentSlideIndex)
+      if (!isTransitioning) handleSlideChange()
+    }
+  }, PROGRESS_UPDATE_INTERVAL)
+}
+
+function stopAutoSlideTimer() {
+  if (progressAnimation) clearInterval(progressAnimation)
+  if (autoSlideTimer) clearTimeout(autoSlideTimer)
+  progressAnimation = null
+  autoSlideTimer = null
+}
+
+function safeStartTimer(delay = 0) {
+  stopAutoSlideTimer()
+  if (sliderEnabled && texturesLoaded) {
+    if (delay > 0) autoSlideTimer = setTimeout(startAutoSlideTimer, delay)
+    else startAutoSlideTimer()
   }
+}
+
+function loadImageTexture(src) {
+  return new Promise((resolve, reject) => {
+    const loader = new THREE.TextureLoader()
+    loader.setCrossOrigin("anonymous")
+    loader.load(src,
+      (t) => {
+        t.minFilter = t.magFilter = THREE.LinearFilter
+        t.userData = { size: new THREE.Vector2(t.image.width, t.image.height) }
+        resolve(t)
+      },
+      undefined,
+      () => {
+        console.warn("Failed to load texture:", src)
+        reject(new Error("Failed to load: " + src))
+      }
+    )
+  })
+}
+
+async function initRenderer() {
+  const canvas = document.querySelector(".webgl-canvas")
+  if (!canvas) {
+    console.warn("Canvas not found")
+    return
+  }
+
+  scene = new THREE.Scene()
+  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false })
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.setSize(window.innerWidth, window.innerHeight)
+  renderer.setClearColor(0x0a0a0a, 1)
+
+  shaderMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      uTexture1: { value: null }, uTexture2: { value: null }, uProgress: { value: 0 },
+      uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      uTexture1Size: { value: new THREE.Vector2(1, 1) }, uTexture2Size: { value: new THREE.Vector2(1, 1) },
+      uEffectType: { value: 0 },
+      uGlobalIntensity: { value: 1.0 }, uSpeedMultiplier: { value: 1.0 }, uDistortionStrength: { value: 1.0 }, uColorEnhancement: { value: 1.0 },
+      uGlassRefractionStrength: { value: 1.0 }, uGlassChromaticAberration: { value: 1.0 }, uGlassBubbleClarity: { value: 1.0 }, uGlassEdgeGlow: { value: 1.0 }, uGlassLiquidFlow: { value: 1.0 },
+      uFrostIntensity: { value: 1.5 }, uFrostCrystalSize: { value: 1.0 }, uFrostIceCoverage: { value: 1.0 }, uFrostTemperature: { value: 1.0 }, uFrostTexture: { value: 1.0 },
+      uRippleFrequency: { value: 25.0 }, uRippleAmplitude: { value: 0.08 }, uRippleWaveSpeed: { value: 1.0 }, uRippleRippleCount: { value: 1.0 }, uRippleDecay: { value: 1.0 },
+      uPlasmaIntensity: { value: 1.2 }, uPlasmaSpeed: { value: 0.8 }, uPlasmaEnergyIntensity: { value: 0.4 }, uPlasmaContrastBoost: { value: 0.3 }, uPlasmaTurbulence: { value: 1.0 },
+      uTimeshiftDistortion: { value: 1.6 }, uTimeshiftBlur: { value: 1.5 }, uTimeshiftFlow: { value: 1.4 }, uTimeshiftChromatic: { value: 1.5 }, uTimeshiftTurbulence: { value: 1.4 },
+    },
+    vertexShader,
+    fragmentShader,
+  })
+
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), shaderMaterial))
+
+  const results = await Promise.allSettled(
+    slides.map(s => loadImageTexture(proxyUrl(s.media)))
+  )
+  slideTextures = results
+    .filter(r => r.status === 'fulfilled')
+    .map(r => r.value)
+
+  if (slideTextures.length >= 2) {
+    shaderMaterial.uniforms.uTexture1.value = slideTextures[0]
+    shaderMaterial.uniforms.uTexture2.value = slideTextures[1]
+    shaderMaterial.uniforms.uTexture1Size.value = slideTextures[0].userData.size
+    shaderMaterial.uniforms.uTexture2Size.value = slideTextures[1].userData.size
+    texturesLoaded = true
+    sliderEnabled = true
+    updateShaderUniforms()
+    safeStartTimer(500)
+  } else {
+    console.warn(`Only ${slideTextures.length} textures loaded, slider disabled`)
+  }
+
+  function renderLoop() {
+    requestAnimationFrame(renderLoop)
+    renderer.render(scene, camera)
+  }
+  renderLoop()
+}
+
+function initApplication() {
+  createSlidesNavigation()
+  updateCounter(0)
+
+  const tEl = document.getElementById('mainTitle')
+  const dEl = document.getElementById('mainDesc')
+  if (tEl && dEl) {
+    tEl.innerHTML = splitText(slides[0].title)
+    dEl.textContent = slides[0].description
+    gsap.fromTo(tEl.children, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 1, stagger: 0.03, ease: "power3.out", delay: 0.5 })
+    gsap.fromTo(dEl, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: "power3.out", delay: 0.8 })
+  }
+
+  initRenderer()
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopAutoSlideTimer()
+    else if (!isTransitioning) safeStartTimer()
+  })
+
+  window.addEventListener("resize", () => {
+    if (renderer) {
+      renderer.setSize(window.innerWidth, window.innerHeight)
+      if (shaderMaterial) {
+        shaderMaterial.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight)
+      }
+    }
+  })
+}
+
+async function fetchAndApplySlides() {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 3000)
+  try {
+    const res = await fetch('/api/home-content/public', { signal: ctrl.signal })
+    clearTimeout(timer)
+    if (!res.ok) return
+    const json = await res.json()
+    if (!json.data || !json.data.length) return
+    const item = json.data.find(i => i.sectionKey === 'movies/slides')
+    if (!item) return
+    const d = JSON.parse(item.contentJson)
+    if (!d.slides || !d.slides.length) return
+    d.slides.forEach((s, i) => {
+      if (i < slides.length) {
+        if (s.title != null) slides[i].title = s.title
+        if (s.description != null) slides[i].description = s.description
+        if (s.media != null) slides[i].media = s.media
+      }
+    })
+  } catch { /* timeout or network error — use defaults */ }
 }
 
 onMounted(async () => {
-  await nextTick()
-  initializeSlider()
-  initCursorRing()
-  unsubscribeRevealStart = subscribeRouteRevealStart(() => {
-    if (!rootRef.value?.isConnected) return
-    resetEntrySlide()
-  })
+  const loader = document.querySelector('.site-loader')
+  if (loader) loader.style.display = 'none'
+  await fetchAndApplySlides()
+  initApplication()
 })
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(rafId)
-  unsubscribeRevealStart?.()
-  cleanups.forEach((fn) => fn())
-  document.documentElement.style.removeProperty('--slider-moving')
-  document.documentElement.style.removeProperty('--movies-card-entrance-top-inset')
+  stopAutoSlideTimer()
+  if (renderer) renderer.dispose()
+  if (shaderMaterial) shaderMaterial.dispose()
+  slideTextures.forEach(t => t?.dispose?.())
 })
 </script>
 
 <template>
-  <div class="movies-page-shell">
-    <main ref="rootRef" class="movies-page">
-      <div class="movies-active-panel" aria-live="polite">
-        <p class="movies-active-panel__index">{{ activeMovieIndexLabel }} / {{ totalMoviesLabel }}</p>
-        <div class="movies-active-panel__content">
-          <p class="movies-active-panel__label">Now centered</p>
-          <h2 class="movies-active-panel__title">{{ activeMovie?.title }}</h2>
-          <p class="movies-active-panel__meta">{{ activeMovie?.year }}</p>
-        </div>
-      </div>
+  <main class="slider-wrapper">
+    <canvas class="webgl-canvas"></canvas>
+    <span class="slide-number" id="slideNumber">01</span>
+    <span class="slide-total" id="slideTotal">06</span>
 
-      <div class="movies-hero-tip" aria-hidden="true">
-        <span>Drag</span>
-        <span class="movies-hero-tip__divider"></span>
-        <span>Hover</span>
-        <span class="movies-hero-tip__divider"></span>
-        <span>Open</span>
-      </div>
+    <div class="slide-content">
+      <h1 class="slide-title" id="mainTitle"></h1>
+      <p class="slide-description" id="mainDesc"></p>
+    </div>
 
-      <div class="slider">
-        <div ref="trackRef" class="slide-track"></div>
-      </div>
-      <div
-        v-if="cursorRingEnabled"
-        v-show="showCursorRing"
-        class="movies-cursor-ring"
-        :style="{ left: `${ringX}px`, top: `${ringY}px` }"
-        aria-hidden="true"
-      >
-        <div
-          class="movies-cursor-ring__disc"
-          :class="{ 'movies-cursor-ring__disc--compact': ringOverSlide }"
-        />
-      </div>
-    </main>
-
-    <StoryScroll />
-  </div>
+    <nav class="slides-navigation" id="slidesNav"></nav>
+  </main>
 </template>
 
-<style scoped>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
 
+:root {
+  --font-mono: "PPSupplyMono", monospace;
+  --font-sans: "PP Neue Montreal", sans-serif;
+  --font-display: "Cormorant Garamond", serif;
+  --color-bg: #0a0a0a;
+  --color-text: #ffffff;
+  --color-text-muted: rgba(255, 255, 255, 0.7);
+  --color-text-light: rgba(255, 255, 255, 0.5);
+  --color-accent: #d4af37;
+  --font-size-mono: clamp(10px, 1.2vw, 12px);
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1rem;
+}
+
+.slides-navigation {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(2rem, 5vh, 3rem);
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 40px;
+  z-index: 10;
+}
+
+.slide-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  opacity: 0.5;
+  transition: opacity 0.35s ease;
+  width: 250px;
+}
+
+.slide-nav-item.active { opacity: 1; }
+.slide-nav-item:hover { opacity: 0.85; }
+
+.slide-progress-line {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.slide-progress-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--color-accent, #d4af37);
+  border-radius: 1px;
+  transition: width 0.1s linear;
+}
+
+.slide-nav-title {
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.slide-nav-item.active .slide-nav-title { color: var(--color-text, #fff); }
+
+@media (max-width: 768px) {
+  .slides-navigation { gap: 12px; }
+  .slide-nav-title { font-size: 0.8rem; }
+}
+</style>
+
+<style scoped>
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-.movies-page-shell {
-  background-color: #0f0f0f;
-}
-
-.movies-page {
-  font-family: 'DM Mono', monospace;
-  color: #fff;
-  min-height: 100svh;
-  background-color: #0f0f0f;
-}
-
-.movies-page > * {
-  position: relative;
-  z-index: 1;
-}
-
-.movies-active-panel {
-  position: absolute;
-  right: clamp(1rem, 4vw, 3.25rem);
-  top: clamp(0.35rem, 1.4vw, 1rem);
-  width: min(19rem, calc(100vw - 2rem));
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  backdrop-filter: none;
-  box-shadow: none;
-}
-
-.movies-active-panel__index,
-.movies-active-panel__label,
-.movies-hero-tip {
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-}
-
-.movies-active-panel__index,
-.movies-active-panel__label,
-.movies-hero-tip {
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-}
-
-.movies-active-panel__index,
-.movies-active-panel__label {
-  font-size: 0.68rem;
-  color: rgb(255 255 255 / 0.56);
-}
-
-.movies-active-panel__content {
-  display: grid;
-  gap: 0.4rem;
-}
-
-.movies-active-panel__title {
-  font-size: clamp(1.4rem, 2.8vw, 2.3rem);
-  line-height: 1;
-  letter-spacing: -0.05em;
-  margin-top: 0.35rem;
-}
-
-.movies-active-panel__meta {
-  color: rgb(255 255 255 / 0.7);
-  font-size: 0.88rem;
-}
-
-.movies-hero-tip {
-  position: absolute;
-  left: clamp(1rem, 4vw, 3.25rem);
-  bottom: clamp(1rem, 4vw, 2.25rem);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: rgb(255 255 255 / 0.58);
-  font-size: 0.68rem;
-  pointer-events: none;
-}
-
-.movies-hero-tip__divider {
-  width: 1.75rem;
-  height: 1px;
-  background: rgb(255 255 255 / 0.22);
-}
-
-.movies-cursor-ring {
+.slider-wrapper {
   position: fixed;
-  left: 0;
-  top: 0;
-  pointer-events: none;
-  z-index: 10001;
-  transform: translate(-50%, -50%);
-  will-change: left, top;
-}
-
-.movies-cursor-ring__disc {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(254, 66, 73, 1);
-  transform: scale(1);
-  transform-origin: 50% 50%;
-  transition: transform 0.52s cubic-bezier(0.22, 1.18, 0.36, 1);
-  will-change: transform;
-}
-
-.movies-cursor-ring__disc--compact {
-  transform: scale(0.2632);
-  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0.2, 1);
-}
-
-.movies-page :deep(a),
-.movies-page :deep(p) {
-  display: block;
-  color: #fff;
-  text-decoration: none;
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.slider {
-  position: relative;
+  inset: 0;
   width: 100vw;
-  height: 100svh;
+  height: 100dvh;
   overflow: hidden;
-  user-select: none;
-  cursor: grab;
+  background-color: var(--color-bg, #0a0a0a);
+  color: var(--color-text, #ffffff);
+  font-family: var(--font-sans, "PP Neue Montreal", sans-serif);
 }
 
-.slider::before,
-.slider::after {
-  content: '';
+.webgl-canvas {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: clamp(3rem, 8vw, 7rem);
-  z-index: 2;
-  pointer-events: none;
-}
-
-.slider::before {
-  left: 0;
-  background: linear-gradient(90deg, #0c0c0c 0%, transparent 100%);
-}
-
-.slider::after {
-  right: 0;
-  background: linear-gradient(270deg, #0c0c0c 0%, transparent 100%);
-}
-
-.slider:active {
-  cursor: grabbing;
-}
-
-.slider :deep(.slide-track) {
-  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  display: flex;
+  display: block;
 }
 
-.slider :deep(.slide) {
-  flex-shrink: 0;
-  width: 430px;
-  height: 620px;
-  margin: 0 50px;
-  position: relative;
+.slide-number,
+.slide-total {
+  position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  overflow: visible;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-}
-
-.slider :deep(.slide-image) {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  clip-path: inset(var(--movies-card-entrance-top-inset, 0%) 0 0 0);
-  will-change: clip-path;
-}
-
-.slider :deep(.slide-image img) {
-  width: 100%;
-  height: 45%;
-  object-fit: cover;
-  will-change: transform;
-  object-position: center;
-  transform: scale(2.25);
-  user-select: none;
-}
-
-.slider :deep(.slide-overlay) {
-  position: absolute;
-  bottom: -2rem;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  pointer-events: none;
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 300;
+  letter-spacing: 0.04em;
   z-index: 10;
+  font-style: italic;
 }
 
-.slider :deep(.project-year) {
+.slide-number {
+  left: clamp(1.5rem, 4vw, 3rem);
+  color: var(--color-text-muted);
+}
+
+.slide-total {
+  right: clamp(1.5rem, 4vw, 3rem);
+  color: var(--color-text-light);
+}
+
+.slide-content {
   position: absolute;
-  top: -1.9rem;
-  right: 0;
-  font-weight: 500;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-align: right;
-  pointer-events: none;
-  z-index: 11;
-  opacity: 0;
-  transform: translate3d(0, 1.1rem, 0);
-  transition: opacity 0.34s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.slider :deep(.slide:hover .project-year) {
-  opacity: calc(1 - var(--slider-moving, 1));
-  transform: translate3d(0, 0, 0);
-}
-
-.slider :deep(.project-title-center) {
-  position: absolute;
-  top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) perspective(1400px) rotateX(-88deg) scale(0.96);
-  transform-origin: 50% 0%;
-  width: max-content;
-  max-width: none;
-  padding: 0 1rem;
-  font-size: clamp(3.2rem, 7.2vw, 7rem);
-  line-height: 0.86;
-  letter-spacing: 0.08em;
-  text-align: center;
-  white-space: nowrap;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
   pointer-events: none;
-  z-index: 9;
-  opacity: 0;
-  transition: opacity 0.38s ease, transform 1.18s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, opacity;
-  backface-visibility: hidden;
+  text-align: center;
+  width: 100%;
+  padding: 0 var(--spacing-md, 1rem);
 }
 
-.slider :deep(.slide:hover .project-title-center) {
-  opacity: calc(1 - var(--slider-moving, 1));
-  transform: translate(-50%, -50%) perspective(1400px) rotateX(0deg) scale(1);
+.slide-title {
+  font-family: var(--font-display, "Cormorant Garamond", serif);
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--color-text, #fff);
+  margin-bottom: 0.5rem;
 }
 
-.slider :deep(.project-title),
-.slider :deep(.project-detail) {
-  opacity: 0;
-  transform: translate3d(0, 1.1rem, 0);
-  transition: opacity 0.34s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+.slide-description {
+  font-family: var(--font-sans, sans-serif);
+  font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+  color: var(--color-text-muted);
+  max-width: 480px;
+  line-height: 1.5;
+  margin: 0 auto;
 }
 
-.slider :deep(.project-title) {
-  font-weight: 500;
-  font-size: 0.8rem;
-}
-
-.slider :deep(.project-detail) {
-  color: rgb(255 255 255 / 0.58);
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-}
-
-.slider :deep(.slide:hover .project-title),
-.slider :deep(.slide:hover .project-detail) {
-  opacity: calc(1 - var(--slider-moving, 1));
-  transform: translate3d(0, 0, 0);
-}
-
-.slider :deep(.project-arrow) {
-  display: none;
-}
-
-.slider :deep(.project-arrow svg) {
-  display: none;
-}
-
-@media (max-width: 1000px) {
-  .movies-active-panel {
-    left: auto;
-    right: 1rem;
-    top: 0.75rem;
-    bottom: auto;
-    width: min(13rem, calc(100vw - 2rem));
-    padding: 0;
-    border-radius: 0;
+@media (max-width: 768px) {
+  .slide-content {
+    padding: 0 0.5rem;
   }
 
-  .movies-active-panel__title {
-    font-size: 1.15rem;
+  .slide-title {
+    font-size: clamp(2rem, 6vw, 3.5rem);
   }
 
-  .movies-active-panel__meta {
-    font-size: 0.78rem;
-  }
-
-  .movies-hero-tip {
-    display: none;
-  }
-
-  .slider :deep(.slide) {
-    width: 210px;
-    height: 300px;
-    margin: 0 12px;
-  }
-
-  .slider :deep(.slide-overlay) {
-    bottom: -1.55rem;
-  }
-
-  .slider :deep(.project-year) {
-    top: -1.45rem;
-    font-size: 0.68rem;
-  }
-
-  .slider :deep(.project-title-center) {
-    font-size: clamp(1.8rem, 8vw, 3rem);
-  }
-
-  .slider :deep(.project-title) {
-    font-size: 0.68rem;
-  }
-
-  .slider :deep(.project-detail) {
-    font-size: 0.62rem;
+  .slide-description {
+    font-size: 0.8rem;
+    max-width: 280px;
   }
 }
 </style>

@@ -2,12 +2,15 @@
 import { computed, ref } from 'vue'
 import { homePageConfig } from '../../config/siteContent'
 
-const slides = homePageConfig.animatedSlideshow.slides
+const props = defineProps({
+  eyebrow: { type: String, default: homePageConfig.animatedSlideshow.eyebrow },
+  slides: { type: Array, default: () => homePageConfig.animatedSlideshow.slides },
+})
 
 const activeSlide = ref(0)
 
 const slideChars = computed(() =>
-  slides.map((slide) => Array.from(`${slide.title} `)),
+  props.slides.map((slide) => Array.from(`${slide.title} `)),
 )
 
 const setActiveSlide = (index) => {
@@ -18,7 +21,7 @@ const setActiveSlide = (index) => {
 <template>
   <section class="animated-slideshow-section">
     <div class="animated-slideshow-shell">
-      <p class="animated-slideshow-eyebrow">{{ homePageConfig.animatedSlideshow.eyebrow }}</p>
+      <p class="animated-slideshow-eyebrow">{{ props.eyebrow }}</p>
 
       <div class="animated-slideshow-layout">
         <div class="animated-slideshow-list">
