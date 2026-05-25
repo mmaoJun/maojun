@@ -1,149 +1,147 @@
-# myWebsite
+# MyWebsite
 
-一个基于 **Vue 3 + Vite** 构建的个人网站项目，包含首页展示以及 `Musics`、`Pictures`、`Movies`、`About` 等页面，适合作为个人主页、作品集展示站或审美向静态网站模板进行二次开发。
+个人网站，基于 Vue 3 + Spring Boot，支持内容管理后台和阿里云 OSS 存储。
 
-## 在线演示
-
-- Demo: [https://mmaojun.com](https://mmaojun.com)
-
-## 项目特性
-
-- 基于 `Vue 3` 与 `Vite`，启动和构建速度快
-- 使用 `Vue Router` 实现多页面切换
-- 包含较强视觉表现的动效与过渡效果
-- 首页含视频、轮播、浮动图片墙、文字展示等模块
-- 页面内容集中在配置文件中，便于替换成自己的内容
-- 适合部署到个人服务器、Vercel、Netlify 等平台
+**在线演示：** [https://mmaojun.com](https://mmaojun.com)
 
 ## 技术栈
 
-- Vue 3
-- Vite
-- Vue Router
-- GSAP
-- Lenis
+**前端**
+
+- Vue 3 + Vite + Vue Router
+- GSAP / Three.js / Lenis 平滑滚动
 - Axios
-- Three.js
 
-## 页面说明
+**后端**
 
-当前项目主要包含以下页面：
-
-- `/`：首页
-- `/musics`：音乐展示页
-- `/pictures`：图片展示页
-- `/movies`：电影展示页
-- `/about`：关于页
-
-## 快速开始
-
-### 1. 克隆项目
-
-```bash
-git clone <your-repo-url>
-cd myWebsite
-```
-
-### 2. 安装依赖
-
-```bash
-npm install
-```
-
-### 3. 启动开发环境
-
-```bash
-npm run dev
-```
-
-启动后默认可在本地开发地址访问，通常为：
-
-```bash
-http://localhost:5173
-```
-
-### 4. 打包生产环境
-
-```bash
-npm run build
-```
+- Spring Boot 3.3 + MyBatis-Plus
+- Spring Security + JWT 认证
+- MySQL + 阿里云 OSS
 
 ## 项目结构
 
-```text
-myWebsite/
-├─ public/                 # 静态资源
-│  ├─ home/                # 首页资源
-│  ├─ media-movies/        # 电影页图片资源
-│  ├─ media-musics/        # 音乐页图片资源
-│  └─ media-slow/          # 其他媒体资源
-├─ src/
-│  ├─ components/          # 页面组件与通用组件
-│  │  └─ ui/               # UI 动效与展示组件
-│  ├─ config/
-│  │  └─ siteContent.js    # 站点核心内容配置
-│  ├─ router/
-│  │  └─ index.js          # 路由配置
-│  ├─ App.vue              # 应用入口视图
-│  └─ main.js              # 应用挂载入口
-├─ index.html
-├─ package.json
-└─ vite.config.js
+```
+├── src/                       # Vue 前端
+│   ├── components/            # 页面组件 & UI 组件
+│   │   └── ui/                # 通用 UI 动效组件
+│   ├── composables/           # 组合式函数
+│   ├── router/                # 路由配置
+│   └── utils/                 # API、Auth、OSS 代理
+├── server/                    # Spring Boot 后端
+│   └── src/main/java/com/maojun/admin/
+│       ├── config/            # 安全、JWT、OSS 配置
+│       ├── controller/        # REST 控制器
+│       ├── service/           # 业务逻辑
+│       └── entity/            # 实体类
+├── deploy.sh                  # 一键部署脚本
+├── Dockerfile                 # Docker 构建
+└── .gitignore
 ```
 
-## 如何改成你自己的站点
+## 页面路由
 
-如果你想把这个项目改成自己的个人主页，建议优先修改以下内容：
+| 路径 | 页面 | 说明 |
+|------|------|------|
+| `/` | 首页 | 视频、轮播、浮动图片墙 |
+| `/about` | 关于 | 个人介绍 |
+| `/musics` | 音乐 | 音乐展示 |
+| `/movies` | 电影 | 电影展示 |
+| `/pictures` | 图片 | 图片展示 |
+| `/login` | 登录 | 管理后台入口 |
+| `/manage-images` | 图片管理 | OSS 图片上传/管理 |
+| `/home-editor` | 首页编辑 | 首页内容配置 |
+| `/movies-editor` | 电影编辑 | 电影页内容配置 |
+| `/pictures-editor` | 图片编辑 | 图片页内容配置 |
+| `/about-editor` | 关于编辑 | 关于页内容配置 |
+| `/musics-editor` | 音乐编辑 | 音乐页内容配置 |
 
-### 1. 修改站点文案与链接
+## 快速开始
 
-核心内容大多集中在：
+### 前端
 
-- `src/config/siteContent.js`
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm run build      # 生产构建 → dist/
+```
 
-你可以在这里修改：
+Vite 已配置代理，`/api` 请求自动转发到后端 `localhost:8080`。
 
-- 网站品牌名
-- 顶部导航
-- 页脚信息
-- 社交链接
-- 首页文案
-- 音乐 / 电影 / 图片页面展示内容
-- About 页面展示内容
+### 后端
 
-### 2. 替换图片与视频资源
+**依赖：** JDK 17+、Maven 3、MySQL 8
 
-静态资源主要放在：
+```bash
+cd server
 
-- `public/home`
-- `public/media-movies`
-- `public/media-musics`
-- `public/media-slow`
+# 1. 配置文件
+cp src/main/resources/application.yml.example src/main/resources/application.yml
+# 编辑 application.yml，填入数据库和 OSS 配置
 
-你可以直接替换这些目录中的素材，并同步更新 `src/config/siteContent.js` 中的路径。
+# 2. 初始化数据库
+mysql -u root -p < init.sql
 
-### 3. 修改路由页面
+# 3. 启动
+mvn spring-boot:run     # 默认 http://localhost:8080
+```
 
-路由定义位于：
+## 部署
 
-- `src/router/index.js`
+### 传统部署
 
-如果你想新增页面或修改页面路径，可以在这里调整。
+```bash
+# 1. 构建后端并部署到服务器
+./deploy.sh
 
-### 4. 修改页面组件
+# 2. 构建前端
+npm run build
+# 将 dist/ 上传到 Nginx 静态目录
+```
 
-主要页面组件位于：
+### Docker
 
-- `src/components/musics.vue`
-- `src/components/movies.vue`
-- `src/components/about.vue`
-- `src/components/pictures.vue`
-- `src/App.vue`
+```bash
+docker build -t mywebsite-backend .
+docker run -d -p 8080:8080 \
+  -e DB_PASSWORD=xxx \
+  -e JWT_SECRET=xxx \
+  -e ADMIN_PASSWORD=xxx \
+  -e OSS_ACCESS_KEY_ID=xxx \
+  -e OSS_ACCESS_KEY_SECRET=xxx \
+  mywebsite-backend
+```
 
-如果你希望更换布局、动画、交互方式，可以从这些文件开始修改。
+### Systemd 服务
 
-## License
+```bash
+cp server/mywebsite-backend.service /etc/systemd/system/
+mkdir -p /opt/mywebsite/backend
+cp server/env.conf.example /opt/mywebsite/backend/env.conf
+# 编辑 /opt/mywebsite/backend/env.conf 填入真实配置
 
-本项目默认仅作为学习、展示与二次开发参考使用。
+systemctl daemon-reload
+systemctl enable --now mywebsite-backend
+```
 
-如果你准备公开商用，建议根据自己的需求补充明确的开源许可证，例如 `MIT`。
+## 环境变量
+
+| 变量 | 说明 |
+|------|------|
+| `DB_PASSWORD` | 数据库密码 |
+| `JWT_SECRET` | JWT 签名密钥 |
+| `ADMIN_PASSWORD` | 管理员后台密码 |
+| `OSS_ACCESS_KEY_ID` | 阿里云 OSS AccessKey ID |
+| `OSS_ACCESS_KEY_SECRET` | 阿里云 OSS AccessKey Secret |
+
+## 二次开发
+
+核心配置文件：
+
+- `src/config/siteContent.js` — 站点文案（品牌名、导航、页脚、各页面内容）
+- `server/src/main/resources/application.yml` — 后端配置（数据库、OSS、JWT）
+
+替换图片和视频资源直接通过管理后台上传到 OSS，无需手动管理 `public/` 目录。
+
+## 许可证
+
+MIT
