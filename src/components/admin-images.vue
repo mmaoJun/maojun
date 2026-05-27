@@ -184,6 +184,52 @@ const cancelEditDesc = () => {
   editingDescId.value = null
 }
 
+// Batch selection - images
+const selectedImageIds = ref(new Set())
+const batchDeleting = ref(false)
+
+const isAllImageSelected = computed(() => {
+  return images.value.length > 0 && images.value.every(item => selectedImageIds.value.has(item.id))
+})
+
+const toggleImageSelect = (id) => {
+  const next = new Set(selectedImageIds.value)
+  if (next.has(id)) { next.delete(id) } else { next.add(id) }
+  selectedImageIds.value = next
+}
+
+const toggleSelectAllImages = () => {
+  if (isAllImageSelected.value) {
+    selectedImageIds.value = new Set()
+  } else {
+    selectedImageIds.value = new Set(images.value.map(item => item.id))
+  }
+}
+
+const batchDeleteImages = async () => {
+  const count = selectedImageIds.value.size
+  if (!count) return
+  if (!confirm(`确定要删除选中的 ${count} 张图片吗？此操作不可恢复。`)) return
+  batchDeleting.value = true
+  const ids = [...selectedImageIds.value]
+  let success = 0
+  let failed = 0
+  for (const id of ids) {
+    try {
+      await api.delete(`/images/${id}`)
+      success++
+    } catch { failed++ }
+  }
+  batchDeleting.value = false
+  selectedImageIds.value = new Set()
+  if (failed === 0) {
+    showMessage(`已成功删除 ${success} 张图片`)
+  } else {
+    showMessage(`${success} 张成功, ${failed} 张失败`, 'error')
+  }
+  await loadImages()
+}
+
 const deleteImage = async (id) => {
   if (!confirm('确定要删除这张图片吗？此操作不可恢复。')) return
   try {
@@ -334,6 +380,52 @@ const saveVideoDesc = async (id) => {
 
 const cancelEditVideoDesc = () => { editingVideoDescId.value = null }
 
+// Batch selection - videos
+const selectedVideoIds = ref(new Set())
+const videoBatchDeleting = ref(false)
+
+const isAllVideoSelected = computed(() => {
+  return videos.value.length > 0 && videos.value.every(item => selectedVideoIds.value.has(item.id))
+})
+
+const toggleVideoSelect = (id) => {
+  const next = new Set(selectedVideoIds.value)
+  if (next.has(id)) { next.delete(id) } else { next.add(id) }
+  selectedVideoIds.value = next
+}
+
+const toggleSelectAllVideos = () => {
+  if (isAllVideoSelected.value) {
+    selectedVideoIds.value = new Set()
+  } else {
+    selectedVideoIds.value = new Set(videos.value.map(item => item.id))
+  }
+}
+
+const batchDeleteVideos = async () => {
+  const count = selectedVideoIds.value.size
+  if (!count) return
+  if (!confirm(`确定要删除选中的 ${count} 个视频吗？此操作不可恢复。`)) return
+  videoBatchDeleting.value = true
+  const ids = [...selectedVideoIds.value]
+  let success = 0
+  let failed = 0
+  for (const id of ids) {
+    try {
+      await api.delete(`/videos/${id}`)
+      success++
+    } catch { failed++ }
+  }
+  videoBatchDeleting.value = false
+  selectedVideoIds.value = new Set()
+  if (failed === 0) {
+    showMessage(`已成功删除 ${success} 个视频`)
+  } else {
+    showMessage(`${success} 个成功, ${failed} 个失败`, 'error')
+  }
+  await loadVideos()
+}
+
 onMounted(() => { loadImages(); loadVideos() })
 </script>
 
@@ -449,9 +541,19 @@ onMounted(() => { loadImages(); loadVideos() })
       <div v-if="loading" class="empty-state">正在加载图片列表...</div>
       <div v-else-if="!images.length" class="empty-state">暂无图片记录，先上传第一张图片吧。</div>
       <div v-else class="image-table-wrapper">
+        <div v-if="selectedImageIds.size" class="batch-bar">
+          <span class="batch-bar__info">已选 <strong>{{ selectedImageIds.size }}</strong> 张图片</span>
+          <div class="batch-bar__actions">
+            <button type="button" class="batch-bar__cancel-btn" @click="selectedImageIds = new Set()">取消选中</button>
+            <button type="button" class="batch-bar__delete-btn" :disabled="batchDeleting" @click="batchDeleteImages">
+              {{ batchDeleting ? '删除中...' : `删除选中` }}
+            </button>
+          </div>
+        </div>
         <table class="image-table">
           <thead>
             <tr>
+              <th class="col-check"><input type="checkbox" :checked="isAllImageSelected" @change="toggleSelectAllImages" title="全选" /></th>
               <th class="col-index">#</th>
               <th class="col-preview">Preview</th>
               <th class="col-name">Name</th>
@@ -463,7 +565,8 @@ onMounted(() => { loadImages(); loadVideos() })
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, index) in images" :key="item.id">
+            <tr v-for="(item, index) in images" :key="item.id" :class="{ 'row--selected': selectedImageIds.has(item.id) }">
+              <td class="col-check"><input type="checkbox" :checked="selectedImageIds.has(item.id)" @change="toggleImageSelect(item.id)" /></td>
               <td class="col-index">{{ index + 1 }}</td>
               <td class="col-preview">
                 <img :src="item.url" :alt="item.fileName || item.ossObjectKey" class="table-thumb" />
@@ -553,9 +656,19 @@ onMounted(() => { loadImages(); loadVideos() })
       <section class="panel list-panel list-panel--flush">
         <div v-if="!videos.length" class="empty-state">暂无视频记录</div>
         <div v-else class="image-table-wrapper">
+          <div v-if="selectedVideoIds.size" class="batch-bar">
+            <span class="batch-bar__info">已选 <strong>{{ selectedVideoIds.size }}</strong> 个视频</span>
+            <div class="batch-bar__actions">
+              <button type="button" class="batch-bar__cancel-btn" @click="selectedVideoIds = new Set()">取消选中</button>
+              <button type="button" class="batch-bar__delete-btn" :disabled="videoBatchDeleting" @click="batchDeleteVideos">
+                {{ videoBatchDeleting ? '删除中...' : `删除选中` }}
+              </button>
+            </div>
+          </div>
           <table class="image-table">
             <thead>
               <tr>
+                <th class="col-check"><input type="checkbox" :checked="isAllVideoSelected" @change="toggleSelectAllVideos" title="全选" /></th>
                 <th class="col-index">#</th>
                 <th class="col-preview">Preview</th>
                 <th class="col-name">Name</th>
@@ -567,7 +680,8 @@ onMounted(() => { loadImages(); loadVideos() })
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(item, index) in videos" :key="item.id">
+              <tr v-for="(item, index) in videos" :key="item.id" :class="{ 'row--selected': selectedVideoIds.has(item.id) }">
+                <td class="col-check"><input type="checkbox" :checked="selectedVideoIds.has(item.id)" @change="toggleVideoSelect(item.id)" /></td>
                 <td class="col-index">{{ index + 1 }}</td>
                 <td class="col-preview">
                   <img :src="getVideoThumbUrl(item.url)" class="table-thumb" @load="onVideoThumbLoad(item)" @error="onVideoThumbError($event, item)" />
@@ -1086,6 +1200,91 @@ button:disabled {
   width: 120px;
   text-align: left;
   white-space: nowrap;
+}
+
+.col-check {
+  width: 36px;
+  text-align: center;
+}
+
+.col-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #2563eb;
+}
+
+.row--selected {
+  background: rgb(59 130 246 / 4%);
+}
+
+/* ---- Batch Action Bar ---- */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1.75rem;
+  background: rgb(239 68 68 / 6%);
+  border-bottom: 1px solid rgb(239 68 68 / 12%);
+}
+
+.batch-bar__info {
+  font-size: 0.82rem;
+  color: #dc2626;
+}
+
+.batch-bar__info strong {
+  font-weight: 700;
+}
+
+.batch-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.batch-bar__cancel-btn {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid rgb(15 23 42 / 15%);
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.2s;
+}
+
+.batch-bar__cancel-btn:hover {
+  background: rgb(15 23 42 / 6%);
+  color: #0f172a;
+  transform: none;
+  filter: none;
+}
+
+.batch-bar__delete-btn {
+  padding: 0.4rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgb(239 68 68 / 30%);
+  border-radius: 8px;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.2s;
+}
+
+.batch-bar__delete-btn:hover {
+  background: rgb(239 68 68 / 10%);
+  transform: none;
+  filter: none;
+}
+
+.batch-bar__delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .desc-edit-row {

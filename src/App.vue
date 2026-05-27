@@ -12,7 +12,10 @@ import GlassFilter from './components/ui/GlassFilter.vue'
 import LiquidGlassNav from './components/ui/LiquidGlassNav.vue'
 import LiquidGlassButton from './components/ui/LiquidGlassButton.vue'
 import ParallaxFloatingGallery from './components/ui/ParallaxFloatingGallery.vue'
+import LayeredText from './components/ui/LayeredText.vue'
 import SiteFooter from './components/ui/SiteFooter.vue'
+import FeedbackSlider from './components/ui/FeedbackSlider.vue'
+import SwapyDraggableCard from './components/ui/SwapyDraggableCard.vue'
 import RevealTextHero from './components/ui/RevealTextHero.vue'
 import ShiningText from './components/ui/ShiningText.vue'
 import MarqueeCards from './components/ui/MarqueeCards.vue'
@@ -1137,6 +1140,10 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <FeedbackSlider />
+
+    <SwapyDraggableCard />
+
     <AnimatedSlideshow :eyebrow="homeContent.animatedSlideshow().eyebrow" :slides="homeContent.animatedSlideshow().slides" />
 
     <MarqueeCards :heading="homeContent.marqueeCards().heading" :description="homeContent.marqueeCards().description" :cards="homeContent.marqueeCards().cards" />
@@ -1161,6 +1168,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <LayeredText />
     <ParallaxFloatingGallery :title="homeContent.parallaxGallery().galleryTitle" button-label="about" min-height="100svh" :images="homeContent.parallaxGallery().images" :gallery-route="homeContent.parallaxGallery().route" />
     <SiteFooter :brand-name="footerInfo.brandName" :logo-text="footerInfo.logoText"
       :social-links="footerInfo.socialLinks" :main-links="footerInfo.mainLinks" :legal-links="footerInfo.legalLinks"

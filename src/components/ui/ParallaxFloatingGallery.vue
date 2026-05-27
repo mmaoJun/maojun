@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { homePageConfig } from '../../config/siteContent'
+import MagneticText from './MagneticText.vue'
+import AnimatedLayerButton from './AnimatedLayerButton.vue'
 
 const router = useRouter()
 
@@ -135,9 +137,9 @@ onBeforeUnmount(() => {
 <template>
   <section ref="sectionRef" class="parallax-floating-section" :style="sectionStyle">
     <div class="parallax-floating-center">
-      <p class="parallax-floating-title">{{ title }}</p>
+      <MagneticText :text="title" :hover-text="buttonLabel.toUpperCase()" />
       <p v-if="subtitle" class="parallax-floating-subtitle">{{ subtitle }}</p>
-      <button type="button" class="parallax-floating-button" @click="handleButtonClick">{{ buttonLabel }}</button>
+      <AnimatedLayerButton type="button" @click="handleButtonClick">{{ buttonLabel }}</AnimatedLayerButton>
     </div>
 
     <div class="parallax-floating-layer" aria-hidden="true">
@@ -212,27 +214,6 @@ onBeforeUnmount(() => {
   color: rgb(255 255 255 / 0.66);
 }
 
-.parallax-floating-button {
-  border: none;
-  border-radius: 999px;
-  min-width: 7rem;
-  padding: 0.7rem 1.1rem;
-  background: #ffffff;
-  color: #050505;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: transform 0.28s ease;
-  box-shadow: none;
-}
-
-.parallax-floating-button:hover {
-  transform: translateY(-2px) scale(1.04);
-  box-shadow: none;
-}
-
 .parallax-floating-layer {
   position: absolute;
   inset: 0;
@@ -287,12 +268,6 @@ onBeforeUnmount(() => {
 
   .parallax-floating-title {
     font-size: clamp(2.8rem, 12vw, 4.8rem);
-  }
-
-  .parallax-floating-button {
-    padding: 0.65rem 1rem;
-    min-width: 6.5rem;
-    font-size: 0.72rem;
   }
 
   .floating-card:nth-child(4),
