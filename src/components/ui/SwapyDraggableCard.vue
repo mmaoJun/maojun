@@ -14,15 +14,15 @@ const config = {
 }
 
 const initialItems = [
-  { id: '1', widget: 'projectViews' },
-  { id: '2', widget: 'newUsers' },
-  { id: '3', widget: 'designIndustry' },
-  { id: '4', widget: 'team' },
-  { id: '5', widget: 'logo' },
-  { id: '6', widget: 'font' },
-  { id: '7', widget: 'agency' },
-  { id: '8', widget: 'userTrust' },
-  { id: '9', widget: 'cardBalance' },
+  { id: '1', widget: 'clock' },
+  { id: '2', widget: 'techStack' },
+  { id: '3', widget: 'brand' },
+  { id: '4', widget: 'musicStats' },
+  { id: '5', widget: 'movieStats' },
+  { id: '6', widget: 'photoStats' },
+  { id: '7', widget: 'github' },
+  { id: '8', widget: 'quote' },
+  { id: '9', widget: 'siteInfo' },
 ]
 
 const slotItemMap = ref(utils.initSlotItemMap(initialItems, 'id'))
@@ -48,11 +48,33 @@ const slotClasses = {
 }
 
 function onSwap(event) {
-  // swapy manages DOM directly — don't update reactive state during drag
   console.log('Swap:', event.newSlotItemMap.asArray)
 }
 
+// ---- Live Clock ----
+const now = ref(new Date())
+let clockTimer = null
+
+const timeString = computed(() =>
+  now.value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+)
+const dateString = computed(() =>
+  now.value.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
+)
+
+// ---- Random Quote ----
+const quotes = [
+  'Design is not just what it looks like and feels like. Design is how it works. — Steve Jobs',
+  'Simplicity is the ultimate sophistication. — Leonardo da Vinci',
+  'First, solve the problem. Then, write the code. — John Johnson',
+  'Code is like humor. When you have to explain it, it\'s bad. — Cory House',
+  'Any fool can write code that a computer can understand. Good programmers write code that humans can understand. — Martin Fowler',
+  'The best way to predict the future is to create it. — Peter Drucker',
+]
+const quote = ref(quotes[Math.floor(Math.random() * quotes.length)])
+
 onMounted(async () => {
+  clockTimer = setInterval(() => { now.value = new Date() }, 1000)
   await nextTick()
   if (containerRef.value) {
     swapyInstance = createSwapy(containerRef.value, config)
@@ -61,6 +83,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  clearInterval(clockTimer)
   swapyInstance?.destroy()
 })
 </script>
@@ -78,119 +101,115 @@ onBeforeUnmount(() => {
           :data-swapy-item="itemId"
           class="sc-item"
         >
-          <!-- Card widgets -->
-          <template v-if="getItem(itemId)?.widget === 'projectViews'">
-            <div class="card card-project-views">
-              <div class="card-pv-row">
-                <h2 class="card-pv-num">4.875</h2>
-                <div class="card-pv-heart">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="#fef08a" stroke="#fef08a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-                  </svg>
-                </div>
-              </div>
-              <p class="card-pv-label">Project Views</p>
-              <p class="card-pv-sub">last year</p>
-            </div>
-          </template>
-
-          <template v-else-if="getItem(itemId)?.widget === 'newUsers'">
-            <div class="card card-new-users">
-              <p class="card-nu-label">New Users</p>
-              <h2 class="card-nu-num">57K</h2>
-              <p class="card-nu-growth">+10%</p>
-            </div>
-          </template>
-
-          <template v-else-if="getItem(itemId)?.widget === 'designIndustry'">
-            <div class="card card-design">
-              <p class="card-design-text">We Build Future of</p>
-              <p class="card-design-text">Design Industry</p>
-            </div>
-          </template>
-
-          <template v-else-if="getItem(itemId)?.widget === 'team'">
-            <div class="card card-team">
-              <div class="card-team-badge">Team of passionate designers and developers</div>
-              <div>
-                <p class="card-team-label">Daily New clients</p>
-                <div class="card-team-row">
-                  <span class="card-team-num">54</span>
-                  <span class="card-team-pct">+40%</span>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template v-else-if="getItem(itemId)?.widget === 'logo'">
-            <div class="card card-logo">
-              <svg viewBox="0 0 100 100" class="card-logo-svg">
-                <circle cx="33" cy="33" r="25" fill="rgb(27, 13, 221)" />
-                <circle cx="67" cy="33" r="25" fill="rgb(9, 4, 255)" />
-                <circle cx="50" cy="67" r="25" fill="rgb(1, 61, 226)" />
+          <!-- 1. Live Clock -->
+          <template v-if="getItem(itemId)?.widget === 'clock'">
+            <div class="card card-clock">
+              <svg class="card-clock-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
-              <h2 class="card-logo-title">UI-Layouts</h2>
+              <h2 class="card-clock-time">{{ timeString }}</h2>
+              <p class="card-clock-date">{{ dateString }}</p>
+              <p class="card-clock-tz">Asia/Shanghai · CST</p>
             </div>
           </template>
 
-          <template v-else-if="getItem(itemId)?.widget === 'font'">
-            <div class="card card-font">
-              <h2 class="card-font-title">Font</h2>
-              <p class="card-font-name">SK-Modernist</p>
-              <div class="card-font-swatches">
-                <div class="card-font-swatch sw-dark"></div>
-                <div class="card-font-swatch sw-gray"></div>
-                <div class="card-font-swatch sw-red"></div>
-                <div class="card-font-swatch sw-pink"></div>
+          <!-- 2. Tech Stack -->
+          <template v-else-if="getItem(itemId)?.widget === 'techStack'">
+            <div class="card card-tech">
+              <p class="card-tech-label">Tech Stack</p>
+              <div class="card-tech-tags">
+                <span class="tag tag-vue">Vue 3</span>
+                <span class="tag tag-gsap">GSAP</span>
+                <span class="tag tag-lenis">Lenis</span>
+                <span class="tag tag-vite">Vite</span>
+                <span class="tag tag-swapy">Swapy</span>
+                <span class="tag tag-motion">Motion</span>
               </div>
             </div>
           </template>
 
-          <template v-else-if="getItem(itemId)?.widget === 'agency'">
-            <div class="card card-agency">
-              <div class="card-agency-badge">
-                <p>Smart Digital</p>
-                <p>Agency For Your</p>
-                <p>Business</p>
-              </div>
-              <div class="card-agency-blocks">
-                <div class="card-agency-block purple"></div>
-                <div class="card-agency-block yellow"></div>
-              </div>
+          <!-- 3. Brand -->
+          <template v-else-if="getItem(itemId)?.widget === 'brand'">
+            <div class="card card-brand">
+              <div class="card-brand-logo">M</div>
+              <h2 class="card-brand-name">maoJun</h2>
+              <p class="card-brand-desc">Personal Portfolio</p>
+              <div class="card-brand-dot"></div>
             </div>
           </template>
 
-          <template v-else-if="getItem(itemId)?.widget === 'userTrust'">
-            <div class="card card-trust">
-              <h3 class="card-trust-title">Trusted By</h3>
-              <p class="card-trust-count">500+ Users</p>
-              <div class="card-trust-avatars">
-                <div class="card-trust-avatar gray"></div>
-                <div class="card-trust-avatar gray"></div>
-                <div class="card-trust-avatar gray"></div>
-                <div class="card-trust-avatar gray"></div>
-                <div class="card-trust-avatar plus">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 12h14"/><path d="M12 5v14"/>
-                  </svg>
+          <!-- 4. Music Stats -->
+          <template v-else-if="getItem(itemId)?.widget === 'musicStats'">
+            <div class="card card-music">
+              <p class="card-music-label">Music Collection</p>
+              <h2 class="card-music-num">40+</h2>
+              <p class="card-music-sub">Tracks in playlist</p>
+              <div class="card-music-bar"><div class="card-music-fill"></div></div>
+            </div>
+          </template>
+
+          <!-- 5. Movie Stats -->
+          <template v-else-if="getItem(itemId)?.widget === 'movieStats'">
+            <div class="card card-movie">
+              <p class="card-movie-label">Movie Gallery</p>
+              <div class="card-movie-row">
+                <span class="card-movie-num">11</span>
+                <span class="card-movie-unit">films</span>
+              </div>
+              <p class="card-movie-sub">Curated collection</p>
+            </div>
+          </template>
+
+          <!-- 6. Photo Stats -->
+          <template v-else-if="getItem(itemId)?.widget === 'photoStats'">
+            <div class="card card-photo">
+              <p class="card-photo-label">Photo Gallery</p>
+              <h2 class="card-photo-num">10+</h2>
+              <p class="card-photo-sub">Curated images</p>
+            </div>
+          </template>
+
+          <!-- 7. GitHub -->
+          <template v-else-if="getItem(itemId)?.widget === 'github'">
+            <div class="card card-github">
+              <svg class="card-github-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+              </svg>
+              <h2 class="card-github-title">Open Source</h2>
+              <p class="card-github-sub">github.com/mmaoJun</p>
+            </div>
+          </template>
+
+          <!-- 8. Random Quote -->
+          <template v-else-if="getItem(itemId)?.widget === 'quote'">
+            <div class="card card-quote">
+              <svg class="card-quote-mark" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+                <path d="M9.983 3v7.391c0 5.704-3.731 9.57-8.983 10.609l-.995-2.151c2.432-.917 3.995-3.638 3.995-5.849h-4v-10h9.983zm14.017 0v7.391c0 5.704-3.748 9.571-9 10.609l-.996-2.151c2.433-.917 3.996-3.638 3.996-5.849h-3.983v-10h9.983z"/>
+              </svg>
+              <p class="card-quote-text">{{ quote }}</p>
+            </div>
+          </template>
+
+          <!-- 9. Site Info -->
+          <template v-else-if="getItem(itemId)?.widget === 'siteInfo'">
+            <div class="card card-info">
+              <h3 class="card-info-heading">Site Info</h3>
+              <div class="card-info-list">
+                <div class="card-info-item">
+                  <span>Framework</span>
+                  <span>Vue 3 + Vite</span>
                 </div>
-              </div>
-              <p class="card-trust-sub">Don't Take Our Words For It...</p>
-            </div>
-          </template>
-
-          <template v-else-if="getItem(itemId)?.widget === 'cardBalance'">
-            <div class="card card-balance">
-              <h3 class="card-balance-heading">Cards balance</h3>
-              <h2 class="card-balance-amount">$ 12,457</h2>
-              <div class="card-balance-info">
-                <div class="card-balance-row">
-                  <span>Card Holder</span>
-                  <span>Expires</span>
+                <div class="card-info-item">
+                  <span>Deploy</span>
+                  <span>GitHub Pages</span>
                 </div>
-                <div class="card-balance-row bold">
-                  <span>Robert Fox</span>
-                  <span>07/22</span>
+                <div class="card-info-item">
+                  <span>Domain</span>
+                  <span>maojun.site</span>
+                </div>
+                <div class="card-info-item">
+                  <span>Location</span>
+                  <span>GuiZhou, China</span>
                 </div>
               </div>
             </div>
@@ -205,10 +224,12 @@ onBeforeUnmount(() => {
 /* ===== Layout ===== */
 .swapy-root {
   width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 1rem;
+  min-height: 100svh;
   background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
 }
 
 .sc-grid {
@@ -216,17 +237,17 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(12, 1fr);
   gap: 0.5rem;
   padding: 1rem 0;
+  width: 100%;
+  max-width: 960px;
 }
 
 @media (min-width: 768px) {
-  .sc-grid {
-    gap: 1.5rem;
-  }
+  .sc-grid { gap: 0.75rem; }
 }
 
 .sc-slot {
   border-radius: 0.75rem;
-  min-height: 16rem;
+  min-height: 11rem;
   transition: background-color 0.2s;
 }
 
@@ -251,9 +272,9 @@ onBeforeUnmount(() => {
 
 /* ===== Column spans ===== */
 .sc-col-12 { grid-column: span 12; }
-.sc-col-7 { grid-column: span 7; }
-.sc-col-5 { grid-column: span 5; }
-.sc-col-6 { grid-column: span 6; }
+.sc-col-7  { grid-column: span 7; }
+.sc-col-5  { grid-column: span 5; }
+.sc-col-6  { grid-column: span 6; }
 
 @media (min-width: 1024px) {
   .sc-lg-col-3 { grid-column: span 3; }
@@ -261,285 +282,295 @@ onBeforeUnmount(() => {
   .sc-lg-col-5 { grid-column: span 5; }
 }
 
-/* ===== Shared card styles ===== */
+/* ===== Shared card ===== */
 .card {
   border-radius: 0.75rem;
   height: 100%;
-  padding: 1.5rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   overflow: hidden;
   position: relative;
 }
 
-/* ===== Project Views Card ===== */
-.card-project-views {
-  background: #059669;
+/* ===== 1. Clock ===== */
+.card-clock {
+  background: #1e293b;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: #e2e8f0;
+}
+.card-clock-icon {
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+.card-clock-time {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.card-clock-date {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+.card-clock-tz {
+  color: #64748b;
+  font-size: 0.7rem;
+  margin-top: 0.35rem;
+}
+
+/* ===== 2. Tech Stack ===== */
+.card-tech {
+  background: #0f172a;
+  justify-content: center;
+  gap: 0.75rem;
+}
+.card-tech-label {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.card-tech-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.tag {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.tag-vue   { background: #42b883; color: #fff; }
+.tag-gsap  { background: #0ae448; color: #000; }
+.tag-lenis { background: #6366f1; color: #fff; }
+.tag-vite  { background: #f59e0b; color: #000; }
+.tag-swapy { background: #ec4899; color: #fff; }
+.tag-motion{ background: #8b5cf6; color: #fff; }
+
+/* ===== 3. Brand ===== */
+.card-brand {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   justify-content: center;
   align-items: center;
   text-align: center;
 }
-.card-pv-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-.card-pv-num {
-  font-size: clamp(1.5rem, 3vw, 2.25rem);
-  font-weight: 700;
-  color: #fef08a;
-  margin-bottom: 0.25rem;
-}
-.card-pv-heart {
+.card-brand-logo {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: #fa5c2f;
+  color: #fff;
   display: flex;
   align-items: center;
-}
-.card-pv-label {
-  color: #fef08a;
-  font-weight: 500;
-}
-.card-pv-sub {
-  color: rgba(254, 240, 138, 0.8);
-  font-size: 0.875rem;
-}
-
-/* ===== New Users Card ===== */
-.card-new-users {
-  background: #4b5563;
   justify-content: center;
-}
-.card-nu-label {
-  color: #fef08a;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-.card-nu-num {
-  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #fef08a;
-  line-height: 1;
+  font-family: 'STXingkai', serif;
+  margin-bottom: 0.75rem;
 }
-.card-nu-growth {
-  color: #4ade80;
-  font-weight: 500;
+.card-brand-name {
+  font-size: clamp(1.125rem, 2.5vw, 1.5rem);
+  font-weight: 700;
+  color: #f1f5f9;
+  font-family: 'STXingkai', serif;
+}
+.card-brand-desc {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+.card-brand-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
   margin-top: 0.5rem;
 }
 
-/* ===== Design Industry Card ===== */
-.card-design {
-  background: #059669;
+/* ===== 4. Music Stats ===== */
+.card-music {
+  background: #fef3c7;
   justify-content: space-between;
 }
-.card-design-text {
-  font-size: clamp(1.125rem, 2.5vw, 1.5rem);
-  font-weight: 700;
-  color: #fef08a;
+.card-music-label {
+  color: #92400e;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.card-music-num {
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 800;
+  color: #78350f;
+  line-height: 1;
+}
+.card-music-sub {
+  color: #a16207;
+  font-size: 0.8rem;
+}
+.card-music-bar {
+  height: 6px;
+  background: #fde68a;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+.card-music-fill {
+  width: 70%;
+  height: 100%;
+  background: #d97706;
+  border-radius: 3px;
 }
 
-/* ===== Team Card ===== */
-.card-team {
-  background: #bfdbfe;
-  justify-content: space-between;
-}
-.card-team-badge {
-  background: #93c5fd;
-  color: #000;
-  font-weight: 500;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  display: inline-block;
-  max-width: fit-content;
-  margin-bottom: 1rem;
-}
-.card-team-label {
-  font-weight: 700;
-  color: #1f2937;
-}
-.card-team-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-.card-team-num {
-  font-size: clamp(2.5rem, 5vw, 3.75rem);
-  font-weight: 700;
-  color: #111827;
-}
-.card-team-pct {
-  color: #22c55e;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-/* ===== Logo Card ===== */
-.card-logo {
-  background: #fbcfe8;
+/* ===== 5. Movie Stats ===== */
+.card-movie {
+  background: #1e1b4b;
   justify-content: center;
-  align-items: center;
 }
-.card-logo-svg {
-  width: 4rem;
-  height: 4rem;
-  margin-bottom: 1rem;
-}
-.card-logo-title {
-  font-size: clamp(1.125rem, 2vw, 1.5rem);
-  font-weight: 700;
-  color: #111827;
-}
-
-/* ===== Font Card ===== */
-.card-font {
-  background: #fef08a;
-}
-.card-font-title {
-  font-size: clamp(1.5rem, 3vw, 1.875rem);
-  font-weight: 700;
-  color: #111827;
+.card-movie-label {
+  color: #a5b4fc;
+  font-weight: 500;
+  font-size: 0.85rem;
   margin-bottom: 0.25rem;
 }
-.card-font-name {
-  color: #374151;
-  margin-bottom: 1.5rem;
-}
-.card-font-swatches {
+.card-movie-row {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-.card-font-swatch {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 0.375rem;
-}
-.sw-dark { background: #1f2937; }
-.sw-gray { background: #9ca3af; }
-.sw-red { background: #f87171; }
-.sw-pink { background: #f9a8d4; }
-
-/* ===== Agency Card ===== */
-.card-agency {
-  background: #c4b5fd;
-  padding: 1rem;
-}
-.card-agency-badge {
-  background: #111827;
-  color: #fef08a;
-  font-size: clamp(1rem, 2vw, 1.125rem);
-  font-weight: 500;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-}
-.card-agency-blocks {
-  display: flex;
+  align-items: baseline;
   gap: 0.5rem;
-  height: 5rem;
 }
-.card-agency-block {
-  flex: 1;
-  border-radius: 0.75rem;
+.card-movie-num {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 800;
+  color: #e0e7ff;
+  line-height: 1;
 }
-.card-agency-block.purple { background: #a78bfa; }
-.card-agency-block.yellow { background: #fef08a; margin-left: 1rem; }
+.card-movie-unit {
+  color: #818cf8;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.card-movie-sub {
+  color: #6366f1;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
 
-/* ===== User Trust Card ===== */
-.card-trust {
-  background: #2563eb;
+/* ===== 6. Photo Stats ===== */
+.card-photo {
+  background: #064e3b;
+  justify-content: center;
+}
+.card-photo-label {
+  color: #6ee7b7;
+  font-weight: 500;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+.card-photo-num {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  color: #d1fae5;
+  line-height: 1;
+}
+.card-photo-sub {
+  color: #34d399;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* ===== 7. GitHub ===== */
+.card-github {
+  background: #f0fdf4;
   justify-content: center;
   align-items: center;
   text-align: center;
-  color: #fff;
 }
-.card-trust-title {
-  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
-  font-weight: 700;
+.card-github-icon {
+  color: #333;
   margin-bottom: 0.5rem;
 }
-.card-trust-count {
-  font-size: clamp(1.5rem, 3vw, 1.875rem);
-  font-weight: 700;
-  margin-bottom: 1rem;
-}
-.card-trust-avatars {
-  display: flex;
-  margin-bottom: 1rem;
-}
-.card-trust-avatar {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.75rem;
-  border: 2px solid #2563eb;
-  margin-left: -0.5rem;
-}
-.card-trust-avatar:first-child {
-  margin-left: 0;
-}
-.card-trust-avatar.gray {
-  background: #e5e7eb;
-}
-.card-trust-avatar.plus {
-  background: #eab308;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.card-trust-sub {
-  font-size: 0.875rem;
-  opacity: 0.9;
-}
-
-/* ===== Card Balance Card ===== */
-.card-balance {
-  background: #fef08a;
-}
-.card-balance-heading {
+.card-github-title {
   font-size: clamp(1.125rem, 2.5vw, 1.25rem);
   font-weight: 700;
-  margin-bottom: 1rem;
-  color: #171717;
+  color: #166534;
 }
-.card-balance-amount {
-  font-size: clamp(1.5rem, 3vw, 1.875rem);
+.card-github-sub {
+  color: #15803d;
+  font-size: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+/* ===== 8. Quote ===== */
+.card-quote {
+  background: #fdf2f8;
+  justify-content: center;
+  padding: 1.25rem 1.5rem;
+}
+.card-quote-mark {
+  margin-bottom: 0.5rem;
+  color: #db2777;
+}
+.card-quote-text {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #831843;
+  font-style: italic;
+}
+
+/* ===== 9. Site Info ===== */
+.card-info {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.card-info-heading {
+  font-size: 0.85rem;
   font-weight: 700;
-  margin-bottom: 1.5rem;
-  color: #262626;
+  color: #334155;
+  margin-bottom: 0.85rem;
 }
-.card-balance-info {
-  background: #000;
-  color: #fff;
-  border-radius: 0.5rem;
-  padding: 1rem;
+.card-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 }
-.card-balance-row {
+.card-info-item {
   display: flex;
   justify-content: space-between;
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
+  align-items: center;
+  font-size: 0.78rem;
+  color: #64748b;
 }
-.card-balance-row.bold {
+.card-info-item span:last-child {
+  color: #0f172a;
   font-weight: 500;
 }
 
-/* ===== Responsive: collapse on mobile ===== */
+/* ===== Responsive ===== */
 @media (max-width: 767px) {
-  .sc-col-7,
-  .sc-col-5,
-  .sc-col-6 {
+  .sc-col-7, .sc-col-5, .sc-col-6 {
     grid-column: span 12;
   }
   .sc-slot {
-    min-height: 12rem;
+    min-height: 9rem;
+  }
+  .sc-grid {
+    gap: 0.4rem;
+  }
+  .swapy-root {
+    padding: 1rem 0.5rem;
   }
 }
 
-/* ===== Large screen font bump ===== */
 @media (min-width: 1536px) {
-  .sc-item {
-    font-size: 1.125rem;
-  }
-  .card-pv-num { font-size: 3rem; }
-  .card-nu-num { font-size: 3.75rem; }
+  .sc-item { font-size: 1.125rem; }
+  .card-clock-time { font-size: 3rem; }
+  .card-music-num { font-size: 4rem; }
 }
 </style>

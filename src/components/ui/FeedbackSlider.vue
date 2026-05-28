@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { motion } from 'motion-v'
 
 const MotionDiv = motion.div
@@ -8,66 +8,86 @@ const MotionSpan = motion.span
 const MotionSvg = motion.svg
 const MotionPath = motion.path
 
-const animationStates = [
-  {
-    bgColor: '#fc7359',
-    indicatorColor: '#790b02',
-    pathColor: '#fc7359',
-    smileColor: '#790b02',
-    titleColor: '#790b02',
-    trackColor: '#fc5b3e',
-    eyeWidth: 56,
-    eyeHeight: 56,
-    eyeBorderRadius: '100%',
-    eyeBg: '#790b02',
-    smileRotate: 180,
-    indicatorRotate: 180,
-    noteText: 'BAD',
-    noteColor: '#e33719',
-    noteX: '0%',
-    indicatorLeft: '0%',
+const props = defineProps({
+  config: {
+    type: Object,
+    default: null,
   },
-  {
-    bgColor: '#dfa342',
-    indicatorColor: '#482103',
-    pathColor: '#dfa342',
-    smileColor: '#482103',
-    titleColor: '#482103',
-    trackColor: '#b07615',
-    eyeWidth: 100,
-    eyeHeight: 20,
-    eyeBorderRadius: '36px',
-    eyeBg: '#482103',
-    smileRotate: 180,
-    indicatorRotate: 180,
-    noteText: 'NOT BAD',
-    noteColor: '#b37716',
-    noteX: '-100%',
-    indicatorLeft: '50%',
-  },
-  {
-    bgColor: '#9fbe59',
-    indicatorColor: '#0b2b03',
-    pathColor: '#9fbe59',
-    smileColor: '#0b2b03',
-    titleColor: '#0b2b03',
-    trackColor: '#698b1b',
-    eyeWidth: 120,
-    eyeHeight: 120,
-    eyeBorderRadius: '100%',
-    eyeBg: '#0b2b03',
-    smileRotate: 0,
-    indicatorRotate: 0,
-    noteText: 'GOOD',
-    noteColor: '#6e901d',
-    noteX: '-200%',
-    indicatorLeft: '100%',
-  },
+})
+
+const themeColors = [
+  { bg: '#fc7359', accent: '#790b02' },  // 0: bad (red)
+  { bg: '#dfa342', accent: '#482103' },  // 1: neutral (yellow)
+  { bg: '#9fbe59', accent: '#0b2b03' },  // 2: good (green)
 ]
 
-const selectedIndex = ref(0)
-const currentAnim = computed(() => animationStates[selectedIndex.value])
+const defaultStates = [
+  { noteText: 'BAD', label: 'Bad' },
+  { noteText: 'NOT BAD', label: 'Not Bad' },
+  { noteText: 'GOOD', label: 'Good' },
+]
+
+function resolveState(s, i) {
+  const colors = themeColors[i] || themeColors[0]
+  return { ...s, bgColor: colors.bg, accentColor: colors.accent }
+}
+
+const states = computed(() => {
+  if (props.config?.states?.length === 3) return props.config.states.map((s, i) => resolveState(s, i))
+  return defaultStates.map((s, i) => resolveState(s, i))
+})
+
+const title = computed(() => props.config?.title || 'How are you feeling today?')
+const defaultIndex = computed(() => {
+  const idx = props.config?.defaultIndex
+  if (typeof idx === 'number' && idx >= 0 && idx <= 2) return idx
+  return 0
+})
+
+const eyeShapes = [
+  { eyeWidth: 56, eyeHeight: 56, eyeBorderRadius: '100%' },
+  { eyeWidth: 100, eyeHeight: 20, eyeBorderRadius: '36px' },
+  { eyeWidth: 120, eyeHeight: 120, eyeBorderRadius: '100%' },
+]
+
+function darken(hex, amount) {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = Math.max(0, (num >> 16) - amount)
+  const g = Math.max(0, ((num >> 8) & 0x00ff) - amount)
+  const b = Math.max(0, (num & 0x0000ff) - amount)
+  return '#' + (0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1)
+}
+
+const animationStates = computed(() =>
+  states.value.map((s, i) => {
+    const eye = eyeShapes[i]
+    return {
+      bgColor: s.bgColor,
+      indicatorColor: s.accentColor,
+      pathColor: s.bgColor,
+      smileColor: s.accentColor,
+      titleColor: s.accentColor,
+      trackColor: darken(s.bgColor, 32),
+      eyeWidth: eye.eyeWidth,
+      eyeHeight: eye.eyeHeight,
+      eyeBorderRadius: eye.eyeBorderRadius,
+      eyeBg: s.accentColor,
+      smileRotate: i === 2 ? 0 : 180,
+      indicatorRotate: i === 2 ? 0 : 180,
+      noteText: s.noteText,
+      noteColor: darken(s.bgColor, 48),
+      noteX: `${-i * 100}%`,
+      indicatorLeft: `${i * 50}%`,
+    }
+  })
+)
+
+const selectedIndex = ref(defaultIndex.value)
+watch(defaultIndex, (val) => { selectedIndex.value = val })
+const currentAnim = computed(() => animationStates.value[selectedIndex.value])
 const transition = { type: 'spring', stiffness: 300, damping: 30 }
+
+const labels = computed(() => states.value.map(s => s.label))
 </script>
 
 <template>
@@ -82,7 +102,7 @@ const transition = { type: 'spring', stiffness: 300, damping: 30 }
         :animate="{ color: currentAnim.titleColor }"
         :transition="transition"
       >
-        How are you feeling today?
+        {{ title }}
       </MotionH3>
 
       <div class="fs-face">
@@ -195,7 +215,7 @@ const transition = { type: 'spring', stiffness: 300, damping: 30 }
         </div>
         <div class="fs-labels">
           <MotionSpan
-            v-for="(text, i) in ['Bad', 'Not Bad', 'Good']"
+            v-for="(text, i) in labels"
             :key="text"
             class="fs-label"
             :animate="{

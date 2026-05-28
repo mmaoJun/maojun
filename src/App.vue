@@ -41,6 +41,7 @@ const homeConfig = homePageConfig
 const aboutConfig = aboutPageConfig
 const navLinks = siteNavLinks
 const footerInfo = computed(() => homeContent.footerData())
+const feedbackSliderConfig = computed(() => homeContent.feedbackSlider())
 
 const homeContent = useHomeContent()
 
@@ -1140,7 +1141,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <FeedbackSlider />
+    <FeedbackSlider :config="feedbackSliderConfig" />
 
     <SwapyDraggableCard />
 

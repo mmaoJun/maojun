@@ -92,6 +92,20 @@ export function useHomeContent() {
     return siteFooter
   }
 
+  const feedbackSlider = () => {
+    const data = sections.value['home/part8']
+    if (data) return data
+    return {
+      title: 'How are you feeling today?',
+      defaultIndex: 0,
+      states: [
+        { noteText: 'BAD', label: 'Bad' },
+        { noteText: 'NOT BAD', label: 'Not Bad' },
+        { noteText: 'GOOD', label: 'Good' },
+      ],
+    }
+  }
+
   const loaderData = () => {
     const data = sections.value['home/part7']
     if (data) {
@@ -120,5 +134,6 @@ export function useHomeContent() {
     parallaxGallery,
     footerData,
     loaderData,
+    feedbackSlider,
   }
 }
