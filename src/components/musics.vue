@@ -1,15 +1,19 @@
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, nextTick, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import * as THREE from 'three'
 import Lenis from 'lenis'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import gsap from 'gsap'
 import { musicsPageConfig } from '../config/siteContent'
 import { vertexShader, fragmentShader } from './shaders.js'
 import MovieCards from './movie-cards.vue'
 import { proxyUrl } from '../utils/ossProxy'
 
+const route = useRoute()
 const heroSection = ref(null)
 const spiralCanvas = ref(null)
+const heroTitleEl = ref(null)
 
 const data = reactive({
   heroTitle: musicsPageConfig.heroTitle,
@@ -75,6 +79,10 @@ let baseSpiralY = 0
 let rafId = 0
 let allowScrollSpin = false
 let unlockSpinTimer = 0
+let tileData = []
+let dropStartTime = 0
+const DROP_DURATION = 0.8
+const DROP_STAGGER = 0.02
 
 const onMouseMove = (e) => {
   mouseX = (e.clientX / window.innerWidth - 0.5) * 2
@@ -93,6 +101,26 @@ const onResize = () => {
 const animate = () => {
   rafId = requestAnimationFrame(animate)
   if (!camera || !renderer || !spiral) return
+
+  const now = performance.now() / 1000
+
+  // Tile drop + float animation
+  for (const td of tileData) {
+    td.elapsed = now - dropStartTime - td.delay
+    if (td.elapsed < 0) continue
+
+    if (!td.landed && td.elapsed < DROP_DURATION) {
+      const t = Math.min(td.elapsed / DROP_DURATION, 1)
+      // Ease out with bounce
+      const eased = 1 - Math.pow(1 - t, 3)
+      td.mesh.position.y = td.targetY + 8 * (1 - eased)
+      td.mesh.material.uniforms.uOpacity.value = Math.min(t * 2, 1)
+    } else {
+      td.landed = true
+      td.mesh.position.y = td.targetY
+      td.mesh.material.uniforms.uOpacity.value = 1
+    }
+  }
 
   const progress = Math.min(scrollY / (window.innerHeight * CONFIG.scrollMultiplier), 1)
   camera.position.y +=
@@ -118,9 +146,75 @@ const animate = () => {
   renderer.render(scene, camera)
 }
 
+function animateHeroTitle() {
+  const el = heroTitleEl.value
+  if (!el || !el.textContent) return
+
+  const text = el.textContent
+  el.innerHTML = ''
+  const words = text.split(/(\s+)/)
+  const wordSpans = []
+  for (const word of words) {
+    const span = document.createElement('span')
+    span.style.display = 'inline-block'
+    span.style.whiteSpace = 'pre'
+    span.textContent = word
+    el.appendChild(span)
+    wordSpans.push(span)
+  }
+
+  // Wait for layout, then group words into lines and alternate alignment
+  requestAnimationFrame(() => {
+    const lines = []
+    let currentLine = []
+    let lastTop = -1
+
+    for (const span of wordSpans) {
+      const top = span.offsetTop
+      if (top !== lastTop && currentLine.length > 0) {
+        lines.push(currentLine)
+        currentLine = []
+      }
+      currentLine.push(span)
+      lastTop = top
+    }
+    if (currentLine.length > 0) lines.push(currentLine)
+
+    // Wrap each line in a div with alternating alignment
+    const allWrappers = []
+    lines.forEach((lineSpans, i) => {
+      const wrapper = document.createElement('div')
+      wrapper.style.textAlign = i % 2 === 0 ? 'left' : 'right'
+      wrapper.style.width = '100%'
+      el.appendChild(wrapper)
+      lineSpans.forEach(s => wrapper.appendChild(s))
+      allWrappers.push(wrapper)
+    })
+
+    // Collect all spans (now re-parented) for animation
+    const allSpans = allWrappers.flatMap(w => Array.from(w.querySelectorAll('span')))
+
+    gsap.fromTo(allSpans, {
+      y: 60,
+      opacity: 0,
+      rotateX: -40,
+    }, {
+      y: 0,
+      opacity: 1,
+      rotateX: 0,
+      duration: 0.65,
+      stagger: 0.03,
+      ease: 'back.out(1.4)',
+    })
+  })
+}
+
 onMounted(async () => {
   await fetchContent()
   CONFIG.totalImages = data.images.length
+
+  await nextTick()
+  animateHeroTitle()
 
   if (!heroSection.value) return
 
@@ -190,6 +284,9 @@ onMounted(async () => {
   spiral = new THREE.Group()
   scene.add(spiral)
 
+  tileData = []
+  dropStartTime = performance.now() / 1000
+
   for (let i = 0; i < totalTiles; i++) {
     const progress = i / totalTiles
     const radius = CONFIG.startRadius + (CONFIG.endRadius - CONFIG.startRadius) * progress
@@ -235,12 +332,17 @@ onMounted(async () => {
       uniforms: {
         uMap: { value: textures[i % CONFIG.totalImages] },
         uCameraPosition: cameraPositionUniform,
+        uOpacity: { value: 0 },
       },
       side: THREE.DoubleSide,
+      transparent: true,
     })
 
     const mesh = new THREE.Mesh(geometry, material)
-    mesh.position.y = centerY
+    const targetY = centerY
+    mesh.position.y = targetY + 8
+
+    tileData.push({ mesh, targetY, delay: (totalTiles - 1 - i) * DROP_STAGGER, elapsed: 0, landed: false, phase: Math.random() * Math.PI * 2 })
 
     const tile = new THREE.Group()
     tile.rotation.y = i * angleStep
@@ -260,6 +362,13 @@ onMounted(async () => {
   requestAnimationFrame(() => ScrollTrigger.refresh())
 })
 
+watch(() => route.path, async (to) => {
+  if (to === '/musics') {
+    await nextTick()
+    animateHeroTitle()
+  }
+})
+
 onBeforeUnmount(() => {
   cancelAnimationFrame(rafId)
   window.clearTimeout(unlockSpinTimer)
@@ -277,6 +386,7 @@ onBeforeUnmount(() => {
     }
   })
 
+  tileData = []
   renderer?.dispose()
   lenis?.destroy()
 })
@@ -285,7 +395,7 @@ onBeforeUnmount(() => {
 <template>
   <main class="pictures-page">
     <section ref="heroSection" class="hero">
-      <h1>{{ data.heroTitle }}</h1>
+      <h1 ref="heroTitleEl">{{ data.heroTitle }}</h1>
       <canvas ref="spiralCanvas" class="spiral-canvas"></canvas>
     </section>
     <MovieCards embedded />
@@ -313,7 +423,7 @@ onBeforeUnmount(() => {
 }
 
 .pictures-page h1 {
-  font-size: clamp(3.5rem, 10vw, 15rem);
+  font-size: clamp(5rem, 12vw, 18rem);
 }
 
 .pictures-page h3 {

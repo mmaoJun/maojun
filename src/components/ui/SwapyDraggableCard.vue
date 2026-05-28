@@ -296,68 +296,68 @@ onBeforeUnmount(() => {
 
 /* ===== 1. Clock ===== */
 .card-clock {
-  background: #1e293b;
+  background: linear-gradient(135deg, #312e81 0%, #4338ca 100%);
   justify-content: center;
   align-items: center;
   text-align: center;
-  color: #e2e8f0;
+  color: #e0e7ff;
 }
 .card-clock-icon {
-  color: #94a3b8;
+  color: #a5b4fc;
   margin-bottom: 0.5rem;
 }
 .card-clock-time {
   font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 700;
-  color: #f8fafc;
+  color: #fff;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
 .card-clock-date {
-  color: #94a3b8;
+  color: #c7d2fe;
   font-size: 0.8rem;
   margin-top: 0.25rem;
 }
 .card-clock-tz {
-  color: #64748b;
+  color: #a5b4fc;
   font-size: 0.7rem;
   margin-top: 0.35rem;
 }
 
 /* ===== 2. Tech Stack ===== */
 .card-tech {
-  background: #0f172a;
+  background: #18181b;
   justify-content: center;
   gap: 0.75rem;
 }
 .card-tech-label {
-  color: #64748b;
-  font-size: 0.75rem;
+  color: #a1a1aa;
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 .card-tech-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.35rem;
 }
 .tag {
-  padding: 0.25rem 0.65rem;
+  padding: 0.22rem 0.6rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
 }
 .tag-vue   { background: #42b883; color: #fff; }
-.tag-gsap  { background: #0ae448; color: #000; }
-.tag-lenis { background: #6366f1; color: #fff; }
-.tag-vite  { background: #f59e0b; color: #000; }
-.tag-swapy { background: #ec4899; color: #fff; }
-.tag-motion{ background: #8b5cf6; color: #fff; }
+.tag-gsap  { background: #0ae448; color: #111; }
+.tag-lenis { background: #818cf8; color: #fff; }
+.tag-vite  { background: #fbbf24; color: #111; }
+.tag-swapy { background: #f472b6; color: #fff; }
+.tag-motion{ background: #a78bfa; color: #fff; }
 
 /* ===== 3. Brand ===== */
 .card-brand {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: linear-gradient(135deg, #ff6b35 0%, #f7c948 100%);
   justify-content: center;
   align-items: center;
   text-align: center;
@@ -366,8 +366,8 @@ onBeforeUnmount(() => {
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
-  background: #fa5c2f;
-  color: #fff;
+  background: #fff;
+  color: #ff6b35;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -375,15 +375,17 @@ onBeforeUnmount(() => {
   font-weight: 700;
   font-family: 'STXingkai', serif;
   margin-bottom: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 .card-brand-name {
   font-size: clamp(1.125rem, 2.5vw, 1.5rem);
   font-weight: 700;
-  color: #f1f5f9;
+  color: #fff;
   font-family: 'STXingkai', serif;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
 }
 .card-brand-desc {
-  color: #94a3b8;
+  color: rgba(255,255,255,0.85);
   font-size: 0.8rem;
   margin-top: 0.25rem;
 }
@@ -391,33 +393,34 @@ onBeforeUnmount(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #22c55e;
+  background: #fff;
   margin-top: 0.5rem;
+  opacity: 0.7;
 }
 
 /* ===== 4. Music Stats ===== */
 .card-music {
-  background: #fef3c7;
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
   justify-content: space-between;
 }
 .card-music-label {
-  color: #92400e;
+  color: rgba(255,255,255,0.9);
   font-weight: 600;
   font-size: 0.85rem;
 }
 .card-music-num {
   font-size: clamp(2.25rem, 5vw, 3.5rem);
   font-weight: 800;
-  color: #78350f;
+  color: #fff;
   line-height: 1;
 }
 .card-music-sub {
-  color: #a16207;
+  color: rgba(255,255,255,0.8);
   font-size: 0.8rem;
 }
 .card-music-bar {
   height: 6px;
-  background: #fde68a;
+  background: rgba(255,255,255,0.25);
   border-radius: 3px;
   overflow: hidden;
   margin-top: 0.5rem;
@@ -425,17 +428,17 @@ onBeforeUnmount(() => {
 .card-music-fill {
   width: 70%;
   height: 100%;
-  background: #d97706;
+  background: #fff;
   border-radius: 3px;
 }
 
 /* ===== 5. Movie Stats ===== */
 .card-movie {
-  background: #1e1b4b;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
   justify-content: center;
 }
 .card-movie-label {
-  color: #a5b4fc;
+  color: rgba(255,255,255,0.85);
   font-weight: 500;
   font-size: 0.85rem;
   margin-bottom: 0.25rem;
@@ -448,27 +451,27 @@ onBeforeUnmount(() => {
 .card-movie-num {
   font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 800;
-  color: #e0e7ff;
+  color: #fff;
   line-height: 1;
 }
 .card-movie-unit {
-  color: #818cf8;
+  color: rgba(255,255,255,0.7);
   font-weight: 600;
   font-size: 1rem;
 }
 .card-movie-sub {
-  color: #6366f1;
+  color: rgba(255,255,255,0.6);
   font-size: 0.75rem;
   margin-top: 0.5rem;
 }
 
 /* ===== 6. Photo Stats ===== */
 .card-photo {
-  background: #064e3b;
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
   justify-content: center;
 }
 .card-photo-label {
-  color: #6ee7b7;
+  color: rgba(255,255,255,0.85);
   font-weight: 500;
   font-size: 0.85rem;
   margin-bottom: 0.25rem;
@@ -476,11 +479,11 @@ onBeforeUnmount(() => {
 .card-photo-num {
   font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 800;
-  color: #d1fae5;
+  color: #fff;
   line-height: 1;
 }
 .card-photo-sub {
-  color: #34d399;
+  color: rgba(255,255,255,0.7);
   font-size: 0.8rem;
   margin-top: 0.25rem;
 }
@@ -493,23 +496,23 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 .card-github-icon {
-  color: #333;
+  color: #16a34a;
   margin-bottom: 0.5rem;
 }
 .card-github-title {
   font-size: clamp(1.125rem, 2.5vw, 1.25rem);
   font-weight: 700;
-  color: #166534;
+  color: #15803d;
 }
 .card-github-sub {
-  color: #15803d;
+  color: #16a34a;
   font-size: 0.75rem;
   margin-top: 0.35rem;
 }
 
 /* ===== 8. Quote ===== */
 .card-quote {
-  background: #fdf2f8;
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
   justify-content: center;
   padding: 1.25rem 1.5rem;
 }
@@ -520,14 +523,14 @@ onBeforeUnmount(() => {
 .card-quote-text {
   font-size: 0.8rem;
   line-height: 1.6;
-  color: #831843;
+  color: #9d174d;
   font-style: italic;
 }
 
 /* ===== 9. Site Info ===== */
 .card-info {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: 1px solid #cbd5e1;
 }
 .card-info-heading {
   font-size: 0.85rem;
@@ -545,11 +548,11 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   font-size: 0.78rem;
-  color: #64748b;
+  color: #475569;
 }
 .card-info-item span:last-child {
   color: #0f172a;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* ===== Responsive ===== */
