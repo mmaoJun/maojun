@@ -769,11 +769,11 @@ const initCardScroll = () => {
         }
 
         if (p >= 0.66 && !flipDone) {
-          gsap.to(cards, { rotationY: 180, duration: 0.72, ease: 'power3.inOut', stagger: 0.08 })
+          gsap.to(cards, { rotationY: 180, duration: 0.72, ease: 'power3.inOut' })
           gsap.to(edgeCards, { y: 16, rotationZ: (i) => [-10, 10][i], duration: 0.72, ease: 'power3.inOut' })
           flipDone = true
         } else if (p < 0.66 && flipDone) {
-          gsap.to(cards, { rotationY: 0, duration: 0.72, ease: 'power3.inOut', stagger: -0.08 })
+          gsap.to(cards, { rotationY: 0, duration: 0.72, ease: 'power3.inOut' })
           gsap.to(edgeCards, { y: 0, rotationZ: 0, duration: 0.72, ease: 'power3.inOut' })
           flipDone = false
         }
@@ -824,11 +824,11 @@ const initCardScroll = () => {
         }
 
         if (p >= 0.7 && !flipDone) {
-          gsap.to(cards, { rotationY: 180, duration: 0.75, ease: 'power3.inOut', stagger: 0.1 })
+          gsap.to(cards, { rotationY: 180, duration: 0.75, ease: 'power3.inOut' })
           gsap.to(edgeCards, { y: 30, rotationZ: (i) => [-15, 15][i], duration: 0.75, ease: 'power3.inOut' })
           flipDone = true
         } else if (p < 0.7 && flipDone) {
-          gsap.to(cards, { rotationY: 0, duration: 0.75, ease: 'power3.inOut', stagger: -0.1 })
+          gsap.to(cards, { rotationY: 0, duration: 0.75, ease: 'power3.inOut' })
           gsap.to(edgeCards, { y: 0, rotationZ: 0, duration: 0.75, ease: 'power3.inOut' })
           flipDone = false
         }
@@ -910,6 +910,14 @@ const activateHome = async () => {
   initCardScroll()
   initCollectionHover()
   homeActive = true
+
+  // Refresh ScrollTrigger after layout settles (new sections: FeedbackSlider, SwapyDraggableCard)
+  requestAnimationFrame(() => {
+    ScrollTrigger.refresh()
+  })
+  setTimeout(() => {
+    ScrollTrigger.refresh()
+  }, 300)
 
   if (pendingRestorePath === '/') {
     const targetY = pendingHomeNavTargetY ?? scrollPositions.get('/') ?? 0
