@@ -292,7 +292,7 @@ function buildScene() {
   renderer.setSize(w, h)
 
   const textureLoader = new THREE.TextureLoader()
-  // 不设置 crossOrigin — OSS 未配置 CORS 头，anonymous 模式会被浏览器拦截
+  textureLoader.crossOrigin = '' // 显式清空 — Three.js 默认 'anonymous'，OSS 未配 CORS 会被拦截
   const textures = Array.from({ length: CONFIG.totalImages }, (_, i) => {
     const tex = textureLoader.load(
       proxyUrl(data.images[i]),
