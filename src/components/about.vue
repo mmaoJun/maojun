@@ -268,7 +268,7 @@ const init = async () => {
   raycaster = new THREE.Raycaster()
 
   const loader = new THREE.TextureLoader()
-  loader.crossOrigin = '' // 显式清空 — Three.js 默认 'anonymous'，OSS 未配 CORS 会被拦截
+  loader.crossOrigin = undefined // 必须 undefined — ImageLoader 只检查 !== undefined，'' 仍触发 CORS
   textures = await Promise.all(images.map((src) => new Promise((resolve) => {
     loader.load(proxyUrl(src), (tex) => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex) }, undefined, () => resolve(null))
   }).then(tex => tex || createFallbackTexture())))

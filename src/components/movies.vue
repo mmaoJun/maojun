@@ -334,7 +334,7 @@ function safeStartTimer(delay = 0) {
 function loadImageTexture(src) {
   return new Promise((resolve, reject) => {
     const loader = new THREE.TextureLoader()
-    loader.crossOrigin = '' // 显式清空 — Three.js 默认 'anonymous'，OSS 未配 CORS 会被拦截
+    loader.crossOrigin = undefined // 必须 undefined — ImageLoader 只检查 !== undefined，'' 仍触发 CORS
     loader.load(src,
       (t) => {
         t.minFilter = t.magFilter = THREE.LinearFilter
