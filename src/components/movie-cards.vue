@@ -11,6 +11,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  /** Preloaded API JSON from parent — avoids duplicate fetch when embedded */
+  preloadedJson: {
+    type: Object,
+    default: null,
+  },
 })
 
 gsap.registerPlugin(ScrollTrigger)
@@ -23,7 +28,31 @@ const data = reactive({
   movies: moviesPageConfig.movies.map(m => ({ ...m })),
 })
 
+function applyContent(json) {
+  if (!json?.data?.length) return
+  const item = json.data.find(i => i.sectionKey === 'musics/movie-cards')
+  if (!item) return
+  const d = JSON.parse(item.contentJson)
+  if (d.glassTheme) {
+    if (d.glassTheme.titleColor != null) data.glassTheme.titleColor = d.glassTheme.titleColor
+    if (d.glassTheme.metaColor != null) data.glassTheme.metaColor = d.glassTheme.metaColor
+  }
+  if (d.movies) d.movies.forEach((m, i) => {
+    if (i < data.movies.length) {
+      if (m.file != null) data.movies[i].file = m.file
+      if (m.title != null) data.movies[i].title = m.title
+      if (m.meta != null) data.movies[i].meta = m.meta
+      if (m.quote != null) data.movies[i].quote = m.quote
+    }
+  })
+}
+
 async function fetchContent() {
+  // When preloaded, skip the network request entirely
+  if (props.preloadedJson) {
+    applyContent(props.preloadedJson)
+    return
+  }
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 3000)
   try {
@@ -31,22 +60,7 @@ async function fetchContent() {
     clearTimeout(timer)
     if (!res.ok) return
     const json = await res.json()
-    if (!json.data || !json.data.length) return
-    const item = json.data.find(i => i.sectionKey === 'musics/movie-cards')
-    if (!item) return
-    const d = JSON.parse(item.contentJson)
-    if (d.glassTheme) {
-      if (d.glassTheme.titleColor != null) data.glassTheme.titleColor = d.glassTheme.titleColor
-      if (d.glassTheme.metaColor != null) data.glassTheme.metaColor = d.glassTheme.metaColor
-    }
-    if (d.movies) d.movies.forEach((m, i) => {
-      if (i < data.movies.length) {
-        if (m.file != null) data.movies[i].file = m.file
-        if (m.title != null) data.movies[i].title = m.title
-        if (m.meta != null) data.movies[i].meta = m.meta
-        if (m.quote != null) data.movies[i].quote = m.quote
-      }
-    })
+    applyContent(json)
   } catch { /* use defaults */ }
 }
 

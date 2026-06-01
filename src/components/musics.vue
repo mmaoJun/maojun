@@ -14,42 +14,69 @@ const route = useRoute()
 const heroSection = ref(null)
 const spiralCanvas = ref(null)
 const heroTitleEl = ref(null)
+const isWebGLAvailable = ref(true)
 
 const data = reactive({
   heroTitle: musicsPageConfig.heroTitle,
   images: musicsPageConfig.pictureFiles.map(f => `/media-musics/${f}`),
 })
 
-async function fetchContent() {
+/* ---- shared API fetch (also used by movie-cards when embedded) ---- */
+const sharedContent = reactive({ data: null })
+let _fetchPromise = null
+
+function ensureContent() {
+  if (_fetchPromise) return _fetchPromise
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), 3000)
-  try {
-    const res = await fetch('/api/home-content/public', { signal: ctrl.signal })
-    clearTimeout(timer)
-    if (!res.ok) return
-    const json = await res.json()
-    if (!json.data || !json.data.length) return
-    const item = json.data.find(i => i.sectionKey === 'musics/content')
-    if (!item) return
-    const d = JSON.parse(item.contentJson)
-    if (d.heroTitle != null) data.heroTitle = d.heroTitle
-    if (d.images) d.images.forEach((url, i) => {
-      if (i < data.images.length && url != null) data.images[i] = url
+  _fetchPromise = fetch('/api/home-content/public', { signal: ctrl.signal })
+    .then(res => {
+      clearTimeout(timer)
+      if (!res.ok) return null
+      return res.json()
     })
-  } catch { /* use defaults */ }
+    .catch(() => null)
+    .then(json => {
+      sharedContent.data = json
+      return json
+    })
+  return _fetchPromise
 }
 
-const CONFIG = {
+async function applyMusicsContent(json) {
+  if (!json?.data?.length) return
+  const item = json.data.find(i => i.sectionKey === 'musics/content')
+  if (!item) return
+  const d = JSON.parse(item.contentJson)
+  if (d.heroTitle != null) data.heroTitle = d.heroTitle
+  if (d.images) d.images.forEach((url, i) => {
+    if (i < data.images.length && url != null) data.images[i] = url
+  })
+}
+
+/* ---- WebGL support check ---- */
+function checkWebGL() {
+  try {
+    const c = document.createElement('canvas')
+    return !!(c.getContext('webgl2') || c.getContext('webgl'))
+  } catch {
+    return false
+  }
+}
+
+/* ---- config (adjusted per device after mount) ---- */
+const CONFIG = reactive({
   totalImages: data.images.length,
   tilesPerRevolution: 15,
   revolutions: 5,
+  tileSegments: 24,
   startRadius: 5,
   endRadius: 3.5,
   tileHeightRatio: 1.1,
-  tileSegments: 24,
   spiralGap: 0.35,
   tileOverlap: 0.005,
   cameraZ: 12,
+  pixelRatioCap: 2,
   cameraSmoothing: 0.075,
   baseRotationSpeed: 0.001,
   scrollRotationMultiplier: 0.0035,
@@ -59,7 +86,7 @@ const CONFIG = {
   parallaxStrength: 0.1,
   spiralLiftRatio: 0.06,
   spiralLiftOnScroll: 0.1,
-}
+})
 
 let lenis = null
 let scene = null
@@ -81,9 +108,34 @@ let allowScrollSpin = false
 let unlockSpinTimer = 0
 let tileData = []
 let dropStartTime = 0
+let isSceneReady = false
+let _visible = true
 const DROP_DURATION = 0.8
 const DROP_STAGGER = 0.02
 
+/* ---- placeholder texture for failed loads ---- */
+let _placeholderTex = null
+
+function getPlaceholderTexture() {
+  if (_placeholderTex) return _placeholderTex
+  const size = 64
+  const c = document.createElement('canvas')
+  c.width = c.height = size
+  const ctx = c.getContext('2d')
+  // checkerboard fallback
+  const sz = size / 4
+  for (let y = 0; y < 4; y++) {
+    for (let x = 0; x < 4; x++) {
+      ctx.fillStyle = (x + y) % 2 === 0 ? '#333' : '#1a1a1a'
+      ctx.fillRect(x * sz, y * sz, sz, sz)
+    }
+  }
+  _placeholderTex = new THREE.CanvasTexture(c)
+  _placeholderTex.minFilter = THREE.LinearFilter
+  return _placeholderTex
+}
+
+/* ---- mouse / resize ---- */
 const onMouseMove = (e) => {
   mouseX = (e.clientX / window.innerWidth - 0.5) * 2
   mouseY = (e.clientY / window.innerHeight - 0.5) * 2
@@ -91,27 +143,36 @@ const onMouseMove = (e) => {
 
 const onResize = () => {
   if (!heroSection.value || !camera || !renderer) return
+  const w = heroSection.value.clientWidth
+  const h = heroSection.value.clientHeight
+  if (w <= 0 || h <= 0) return
   isMobile = window.innerWidth < 1000
-  camera.aspect = heroSection.value.clientWidth / heroSection.value.clientHeight
-  camera.position.z = isMobile ? 15 : CONFIG.cameraZ
+  camera.aspect = w / h
+  camera.position.z = isMobile ? (CONFIG.cameraZ + 4) : CONFIG.cameraZ
   camera.updateProjectionMatrix()
-  renderer.setSize(heroSection.value.clientWidth, heroSection.value.clientHeight)
+  renderer.setSize(w, h)
 }
 
+/* ---- visibility — pause loop when tab is hidden ---- */
+const onVisibilityChange = () => {
+  _visible = document.visibilityState !== 'hidden'
+}
+
+/* ---- render loop ---- */
 const animate = () => {
   rafId = requestAnimationFrame(animate)
-  if (!camera || !renderer || !spiral) return
+
+  if (!_visible || !isSceneReady || !camera || !renderer || !spiral) return
 
   const now = performance.now() / 1000
 
-  // Tile drop + float animation
+  // Tile drop + fade-in
   for (const td of tileData) {
     td.elapsed = now - dropStartTime - td.delay
     if (td.elapsed < 0) continue
 
     if (!td.landed && td.elapsed < DROP_DURATION) {
       const t = Math.min(td.elapsed / DROP_DURATION, 1)
-      // Ease out with bounce
       const eased = 1 - Math.pow(1 - t, 3)
       td.mesh.position.y = td.targetY + 8 * (1 - eased)
       td.mesh.material.uniforms.uOpacity.value = Math.min(t * 2, 1)
@@ -127,9 +188,7 @@ const animate = () => {
     (-(progress * spiralHeight * CONFIG.cameraYMultiplier) - camera.position.y) *
     CONFIG.cameraSmoothing
 
-  if (spiral) {
-    spiral.position.y = baseSpiralY + progress * spiralHeight * CONFIG.spiralLiftOnScroll
-  }
+  spiral.position.y = baseSpiralY + progress * spiralHeight * CONFIG.spiralLiftOnScroll
 
   if (!isMobile) {
     smoothX += (mouseX - smoothX) * 0.02
@@ -146,6 +205,7 @@ const animate = () => {
   renderer.render(scene, camera)
 }
 
+/* ---- title animation ---- */
 function animateHeroTitle() {
   const el = heroTitleEl.value
   if (!el || !el.textContent) return
@@ -163,7 +223,6 @@ function animateHeroTitle() {
     wordSpans.push(span)
   }
 
-  // Wait for layout, then group words into lines and alternate alignment
   requestAnimationFrame(() => {
     const lines = []
     let currentLine = []
@@ -180,7 +239,6 @@ function animateHeroTitle() {
     }
     if (currentLine.length > 0) lines.push(currentLine)
 
-    // Wrap each line in a div with alternating alignment
     const allWrappers = []
     lines.forEach((lineSpans, i) => {
       const wrapper = document.createElement('div')
@@ -191,7 +249,6 @@ function animateHeroTitle() {
       allWrappers.push(wrapper)
     })
 
-    // Collect all spans (now re-parented) for animation
     const allSpans = allWrappers.flatMap(w => Array.from(w.querySelectorAll('span')))
 
     gsap.fromTo(allSpans, {
@@ -209,46 +266,20 @@ function animateHeroTitle() {
   })
 }
 
-onMounted(async () => {
-  await fetchContent()
-  CONFIG.totalImages = data.images.length
+/* ---- Three.js scene setup ---- */
+function buildScene() {
+  if (!heroSection.value || !spiralCanvas.value) return
 
-  await nextTick()
-  animateHeroTitle()
-
-  if (!heroSection.value) return
-
-  lenis = new Lenis({ autoRaf: true })
-  allowScrollSpin = false
-  unlockSpinTimer = window.setTimeout(() => {
-    allowScrollSpin = true
-  }, 520)
-
-  lenis.on('scroll', (e) => {
-    scrollY = window.pageYOffset || 0
-    ScrollTrigger.update()
-
-    if (!allowScrollSpin) {
-      spinVelocity *= 0.82
-      return
-    }
-
-    const rawVelocity = e?.velocity ?? 0
-    const clampedVelocity = Math.max(-2.4, Math.min(2.4, rawVelocity))
-    spinVelocity = clampedVelocity * CONFIG.scrollRotationMultiplier
-  })
+  const w = heroSection.value.clientWidth
+  const h = heroSection.value.clientHeight
+  if (w <= 0 || h <= 0) return
 
   const totalTiles = Math.floor(CONFIG.tilesPerRevolution * CONFIG.revolutions)
   const angleStep = (Math.PI * 2) / CONFIG.tilesPerRevolution
 
   scene = new THREE.Scene()
 
-  camera = new THREE.PerspectiveCamera(
-    75,
-    heroSection.value.clientWidth / heroSection.value.clientHeight,
-    0.1,
-    1000,
-  )
+  camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000)
   camera.position.z = CONFIG.cameraZ
 
   renderer = new THREE.WebGLRenderer({
@@ -256,23 +287,33 @@ onMounted(async () => {
     alpha: true,
     canvas: spiralCanvas.value,
   })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.setSize(heroSection.value.clientWidth, heroSection.value.clientHeight)
+  const maxRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : CONFIG.pixelRatioCap
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxRatio))
+  renderer.setSize(w, h)
 
   const textureLoader = new THREE.TextureLoader()
-  const textures = Array.from({ length: CONFIG.totalImages }, (_, i) =>
-    textureLoader.load(proxyUrl(data.images[i]), (t) => {
-      t.minFilter = THREE.LinearMipmapLinearFilter
-      t.anisotropy = renderer.capabilities.getMaxAnisotropy()
-    }),
-  )
+  const textures = Array.from({ length: CONFIG.totalImages }, (_, i) => {
+    const tex = textureLoader.load(
+      proxyUrl(data.images[i]),
+      (t) => {
+        t.minFilter = THREE.LinearMipmapLinearFilter
+        const maxAniso = renderer.capabilities.getMaxAnisotropy()
+        t.anisotropy = Math.min(maxAniso, 4)
+      },
+      undefined, // onProgress
+      () => {
+        // onError — swap in placeholder so the spiral never has empty tiles
+        textures[i] = getPlaceholderTexture()
+      },
+    )
+    return tex
+  })
 
   cameraPositionUniform = {
     value: new THREE.Vector3(0, 0, CONFIG.cameraZ),
   }
 
   const tileEdgesY = [0]
-
   for (let i = 0; i < totalTiles; i++) {
     const progress = i / totalTiles
     const radius = CONFIG.startRadius + (CONFIG.endRadius - CONFIG.startRadius) * progress
@@ -342,7 +383,13 @@ onMounted(async () => {
     const targetY = centerY
     mesh.position.y = targetY + 8
 
-    tileData.push({ mesh, targetY, delay: (totalTiles - 1 - i) * DROP_STAGGER, elapsed: 0, landed: false, phase: Math.random() * Math.PI * 2 })
+    tileData.push({
+      mesh,
+      targetY,
+      delay: (totalTiles - 1 - i) * DROP_STAGGER,
+      elapsed: 0,
+      landed: false,
+    })
 
     const tile = new THREE.Group()
     tile.rotation.y = i * angleStep
@@ -352,11 +399,68 @@ onMounted(async () => {
 
   spiralHeight = Math.abs(tileEdgesY[totalTiles])
   baseSpiralY = spiralHeight * CONFIG.spiralLiftRatio
-  if (spiral) spiral.position.y = baseSpiralY
+  spiral.position.y = baseSpiralY
 
+  isSceneReady = true
+}
+
+/* ---- lifecycle ---- */
+onMounted(async () => {
+  // WebGL check
+  if (!checkWebGL()) {
+    isWebGLAvailable.value = false
+    return
+  }
+
+  // Single content fetch shared with embedded movie-cards
+  const json = await ensureContent()
+  await applyMusicsContent(json)
+  CONFIG.totalImages = data.images.length
+
+  await nextTick()
+  animateHeroTitle()
+
+  if (!heroSection.value) return
+
+  // Mobile adjustments
   isMobile = window.innerWidth < 1000
-  window.addEventListener('mousemove', onMouseMove)
+  if (isMobile) {
+    CONFIG.tilesPerRevolution = 10
+    CONFIG.revolutions = 3
+    CONFIG.tileSegments = 14
+    CONFIG.cameraZ = 13
+    CONFIG.cameraSmoothing = 0.1
+    CONFIG.scrollRotationMultiplier = 0.002
+    CONFIG.pixelRatioCap = 1.5
+  }
+
+  lenis = new Lenis({ autoRaf: true })
+  allowScrollSpin = false
+  unlockSpinTimer = window.setTimeout(() => {
+    allowScrollSpin = true
+  }, 520)
+
+  lenis.on('scroll', (e) => {
+    scrollY = window.pageYOffset || 0
+    ScrollTrigger.update()
+
+    if (!allowScrollSpin) {
+      spinVelocity *= 0.82
+      return
+    }
+
+    const rawVelocity = e?.velocity ?? 0
+    const clampedVelocity = Math.max(-2.4, Math.min(2.4, rawVelocity))
+    spinVelocity = clampedVelocity * CONFIG.scrollRotationMultiplier
+  })
+
+  buildScene()
+
+  if (!isMobile) {
+    window.addEventListener('mousemove', onMouseMove, { passive: true })
+  }
   window.addEventListener('resize', onResize)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 
   animate()
   requestAnimationFrame(() => ScrollTrigger.refresh())
@@ -375,9 +479,8 @@ onBeforeUnmount(() => {
   allowScrollSpin = false
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('resize', onResize)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 
-  if (heroSection.value && renderer?.domElement?.parentNode === heroSection.value) {
-  }
   spiral?.traverse((obj) => {
     if (obj.isMesh) {
       obj.geometry?.dispose()
@@ -387,50 +490,58 @@ onBeforeUnmount(() => {
   })
 
   tileData = []
+  _placeholderTex?.dispose()
+  _placeholderTex = null
   renderer?.dispose()
   lenis?.destroy()
+  isSceneReady = false
 })
 </script>
 
 <template>
-  <main class="pictures-page">
+  <main class="musics-page">
     <section ref="heroSection" class="hero">
       <h1 ref="heroTitleEl">{{ data.heroTitle }}</h1>
-      <canvas ref="spiralCanvas" class="spiral-canvas"></canvas>
+      <!-- WebGL fallback: show a message when WebGL is not available -->
+      <div v-if="!isWebGLAvailable" class="webgl-fallback">
+        <p>Your browser does not support WebGL.</p>
+        <p>Please use a modern browser to view the 3D gallery.</p>
+      </div>
+      <canvas v-show="isWebGLAvailable" ref="spiralCanvas" class="spiral-canvas"></canvas>
     </section>
-    <MovieCards embedded />
+    <MovieCards embedded :preloadedJson="sharedContent.data" />
   </main>
 </template>
 
 <style scoped>
 @import url("https://fonts.cdnfonts.com/css/pp-neue-montreal");
 
-.pictures-page * {
+.musics-page * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-.pictures-page {
+.musics-page {
   font-family: "PP Neue Montreal", sans-serif;
 }
 
-.pictures-page h1,
-.pictures-page h3 {
+.musics-page h1,
+.musics-page h3 {
   text-transform: uppercase;
   letter-spacing: -0.1rem;
   line-height: 0.8;
 }
 
-.pictures-page h1 {
+.musics-page h1 {
   font-size: clamp(5rem, 12vw, 18rem);
 }
 
-.pictures-page h3 {
+.musics-page h3 {
   font-size: clamp(2.5rem, 5vw, 7.5rem);
 }
 
-.pictures-page section {
+.musics-page section {
   position: relative;
   width: 100%;
   padding: 2rem;
@@ -438,20 +549,20 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.pictures-page .hero {
+.musics-page .hero {
   height: 150svh;
   background-color: #242424;
   text-align: justify;
   isolation: isolate;
 }
 
-.pictures-page .hero h1 {
+.musics-page .hero h1 {
   position: relative;
   z-index: 1;
   pointer-events: none;
 }
 
-.pictures-page .spiral-canvas {
+.musics-page .spiral-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -460,18 +571,22 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.pictures-page canvas {
+.musics-page .webgl-fallback {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 6;
-  pointer-events: none;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 1rem;
+  text-align: center;
+  gap: 0.5rem;
 }
 
 @media (max-width: 1000px) {
-  .pictures-page .hero {
+  .musics-page .hero {
     height: 125svh;
   }
 }
