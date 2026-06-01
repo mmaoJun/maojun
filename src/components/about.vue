@@ -135,26 +135,6 @@ const computeBlur = (p) => {
   return maxBlur
 }
 
-/* 纹理加载失败时的占位纹理 (64x64 checkerboard) */
-let _fallbackTex = null
-function createFallbackTexture() {
-  if (_fallbackTex) return _fallbackTex
-  const size = 64
-  const c = document.createElement('canvas')
-  c.width = c.height = size
-  const ctx = c.getContext('2d')
-  const sz = size / 4
-  for (let y = 0; y < 4; y++) {
-    for (let x = 0; x < 4; x++) {
-      ctx.fillStyle = (x + y) % 2 === 0 ? '#222' : '#111'
-      ctx.fillRect(x * sz, y * sz, sz, sz)
-    }
-  }
-  _fallbackTex = new THREE.CanvasTexture(c)
-  _fallbackTex.colorSpace = THREE.SRGBColorSpace
-  return _fallbackTex
-}
-
 const onWheel = (e) => {
   e.preventDefault()
   scrollVelocity += e.deltaY * 0.01 * speed
@@ -250,7 +230,6 @@ const disposeAll = () => {
   textures.forEach((t) => t.dispose())
   textures = []
   if (renderer) { renderer.dispose(); renderer.domElement.remove() }
-  _fallbackTex = null
   renderer = null; scene = null; camera = null; clock = null; raycaster = null; hoveredMesh = null
 }
 
@@ -268,10 +247,9 @@ const init = async () => {
   raycaster = new THREE.Raycaster()
 
   const loader = new THREE.TextureLoader()
-  loader.crossOrigin = undefined // 必须 undefined — ImageLoader 只检查 !== undefined，'' 仍触发 CORS
   textures = await Promise.all(images.map((src) => new Promise((resolve) => {
-    loader.load(proxyUrl(src), (tex) => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex) }, undefined, () => resolve(null))
-  }).then(tex => tex || createFallbackTexture())))
+    loader.load(proxyUrl(src), (tex) => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex) })
+  })))
 
   planes = Array.from({ length: visibleCount }, (_, i) => {
     const tex = textures[i % textures.length]
