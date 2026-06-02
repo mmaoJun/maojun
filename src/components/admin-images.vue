@@ -148,9 +148,9 @@ const uploading = computed(() => uploadingCount.value > 0)
 const downloadImage = async (id, fileName) => {
   try {
     showMessage('正在准备下载...')
-    // 1. 获取 OSS 预签名下载 URL
+    // 1. 获取 OSS 预签名下载 URL，强制升级为 HTTPS（防止 mixed content 被拦截）
     const { data } = await api.get(`/images/${id}/download`)
-    const downloadUrl = data.data
+    const downloadUrl = data.data.replace(/^http:\/\//, 'https://')
 
     // 2. 通过 fetch 获取文件 blob（OSS 已配置跨域）
     const response = await fetch(downloadUrl)
@@ -360,9 +360,9 @@ const deleteVideo = async (id) => {
 const downloadVideo = async (id, fileName) => {
   try {
     showMessage('正在准备下载...')
-    // 1. 获取 OSS 预签名下载 URL
+    // 1. 获取 OSS 预签名下载 URL，强制升级为 HTTPS（防止 mixed content 被拦截）
     const { data } = await api.get(`/videos/${id}/download`)
-    const downloadUrl = data.data
+    const downloadUrl = data.data.replace(/^http:\/\//, 'https://')
 
     // 2. 通过 fetch 获取文件 blob（OSS 已配置跨域）
     const response = await fetch(downloadUrl)
