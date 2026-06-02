@@ -148,13 +148,14 @@ const uploading = computed(() => uploadingCount.value > 0)
 const downloadImage = async (id, fileName) => {
   try {
     const { data } = await api.get(`/images/${id}/download`)
-    const link = document.createElement('a')
-    link.href = data.data
-    link.download = fileName || 'image'
-    link.target = '_blank'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    // 用隐藏 iframe 触发下载，避免异步 click 被浏览器弹窗拦截器阻止
+    const iframe = document.createElement('iframe')
+    iframe.style.display = 'none'
+    iframe.src = data.data
+    document.body.appendChild(iframe)
+    setTimeout(() => {
+      document.body.removeChild(iframe)
+    }, 60000)
   } catch (error) {
     showMessage(error.response?.data?.message || '下载链接生成失败', 'error')
   }
@@ -346,13 +347,14 @@ const deleteVideo = async (id) => {
 const downloadVideo = async (id, fileName) => {
   try {
     const { data } = await api.get(`/videos/${id}/download`)
-    const link = document.createElement('a')
-    link.href = data.data
-    link.download = fileName || 'video'
-    link.target = '_blank'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    // 用隐藏 iframe 触发下载，避免异步 click 被浏览器弹窗拦截器阻止
+    const iframe = document.createElement('iframe')
+    iframe.style.display = 'none'
+    iframe.src = data.data
+    document.body.appendChild(iframe)
+    setTimeout(() => {
+      document.body.removeChild(iframe)
+    }, 60000)
   } catch (error) {
     showMessage(error.response?.data?.message || '下载链接生成失败', 'error')
   }
