@@ -229,12 +229,10 @@ onBeforeUnmount(() => {
   transition:
     opacity 0.55s ease,
     transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.25s ease,
     filter 0.25s ease;
   will-change: transform;
   border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 18px 42px rgb(0 0 0 / 0.28);
 }
 
 .floating-card.is-visible {
@@ -253,7 +251,6 @@ onBeforeUnmount(() => {
 
 .floating-card:hover {
   z-index: 4;
-  box-shadow: 0 26px 54px rgb(0 0 0 / 0.38);
 }
 
 .floating-card:hover img {

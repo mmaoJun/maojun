@@ -289,7 +289,6 @@ onBeforeUnmount(() => {
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   overflow: hidden;
   position: relative;
 }
@@ -375,7 +374,6 @@ onBeforeUnmount(() => {
   font-weight: 700;
   font-family: 'STXingkai', serif;
   margin-bottom: 0.75rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 .card-brand-name {
   font-size: clamp(1.125rem, 2.5vw, 1.5rem);

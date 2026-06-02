@@ -21,7 +21,7 @@
   border: 0;
   border-radius: 16px;
   background: transparent;
-  overflow: hidden;
+  overflow: visible;
   will-change: transform, width;
 }
 
