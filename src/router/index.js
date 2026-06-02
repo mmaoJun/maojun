@@ -5,6 +5,7 @@ import Musics from '../components/musics.vue'
 import About from '../components/about.vue'
 import Pictures from '../components/pictures.vue'
 import Movies from '../components/movies.vue'
+import DesignView from '../components/design/DesignView.vue'
 import AdminLogin from '../components/admin-login.vue'
 import AdminImages from '../components/admin-images.vue'
 import AdminHomeEditor from '../components/admin-home-editor.vue'
@@ -25,6 +26,7 @@ const routes = [
   { path: '/pictures', component: Pictures },
   { path: '/about', component: About },
   { path: '/movies', component: Movies },
+  { path: '/design', component: DesignView, meta: { hideShell: true } },
   { path: '/login', component: AdminLogin, meta: { hideShell: true, public: true } },
   { path: '/manage-images', component: AdminImages, meta: { hideShell: true, requiresAuth: true } },
   { path: '/home-editor', component: AdminHomeEditor, meta: { hideShell: true, requiresAuth: true } },
