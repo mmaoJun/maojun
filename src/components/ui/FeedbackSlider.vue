@@ -45,9 +45,9 @@ const defaultIndex = computed(() => {
 })
 
 const eyeShapes = [
-  { eyeWidth: 56, eyeHeight: 56, eyeBorderRadius: '100%' },
-  { eyeWidth: 100, eyeHeight: 20, eyeBorderRadius: '36px' },
-  { eyeWidth: 120, eyeHeight: 120, eyeBorderRadius: '100%' },
+  { eyeWidth: 72, eyeHeight: 72, eyeBorderRadius: '100%' },
+  { eyeWidth: 124, eyeHeight: 26, eyeBorderRadius: '40px' },
+  { eyeWidth: 150, eyeHeight: 150, eyeBorderRadius: '100%' },
 ]
 
 function darken(hex, amount) {
@@ -246,25 +246,25 @@ const labels = computed(() => states.value.map(s => s.label))
 .fs-inner {
   display: flex;
   height: 100%;
-  width: 400px;
+  width: 520px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 1.5rem;
 }
 
 .fs-title {
   margin-bottom: 2.5rem;
-  width: 18rem;
+  width: 24rem;
   text-align: center;
-  font-size: 1.25rem;
+  font-size: 1.625rem;
   font-weight: 600;
   line-height: 1.4;
 }
 
 .fs-face {
   display: flex;
-  height: 176px;
+  height: 220px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -274,13 +274,13 @@ const labels = computed(() => states.value.map(s => s.label))
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2rem;
+  gap: 2.5rem;
 }
 
 .fs-smile-wrap {
   display: flex;
-  height: 3.5rem;
-  width: 3.5rem;
+  height: 4.5rem;
+  width: 4.5rem;
   align-items: center;
   justify-content: center;
 }
@@ -291,8 +291,8 @@ const labels = computed(() => states.value.map(s => s.label))
   align-items: center;
   justify-content: flex-start;
   overflow: hidden;
-  padding-bottom: 3.5rem;
-  padding-top: 1.75rem;
+  padding-bottom: 4rem;
+  padding-top: 2rem;
 }
 
 .fs-note-slider {
@@ -310,7 +310,7 @@ const labels = computed(() => states.value.map(s => s.label))
 }
 
 .fs-note-cell h1 {
-  font-size: 4.5rem;
+  font-size: 6rem;
   font-weight: 900;
   line-height: 1;
 }
@@ -322,14 +322,14 @@ const labels = computed(() => states.value.map(s => s.label))
 .fs-track {
   position: relative;
   width: 100%;
-  height: 2.5rem;
+  height: 3rem;
 }
 
 .fs-dot {
   position: absolute;
   z-index: 2;
-  height: 1.5rem;
-  width: 1.5rem;
+  height: 1.8rem;
+  width: 1.8rem;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -340,7 +340,7 @@ const labels = computed(() => states.value.map(s => s.label))
 .fs-track-line {
   position: absolute;
   top: 50%;
-  height: 0.25rem;
+  height: 0.35rem;
   width: 100%;
   transform: translateY(-50%);
 }
@@ -358,8 +358,8 @@ const labels = computed(() => states.value.map(s => s.label))
 
 .fs-indicator-inner {
   display: flex;
-  height: 2.5rem;
-  width: 2.5rem;
+  height: 3rem;
+  width: 3rem;
   align-items: center;
   justify-content: center;
   /* rotate is animated by motion-v on this inner element,
@@ -371,12 +371,13 @@ const labels = computed(() => states.value.map(s => s.label))
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  padding-top: 1.5rem;
+  padding-top: 2rem;
 }
 
 .fs-label {
   width: 100%;
   text-align: center;
+  font-size: 1.125rem;
   font-weight: 500;
 }
 </style>

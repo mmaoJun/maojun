@@ -296,7 +296,7 @@ onBeforeUnmount(() => {
 
 /* ===== 1. Clock ===== */
 .card-clock {
-  background: linear-gradient(135deg, #312e81 0%, #4338ca 100%);
+  background: #1e1b4b;
   justify-content: center;
   align-items: center;
   text-align: center;
@@ -357,7 +357,7 @@ onBeforeUnmount(() => {
 
 /* ===== 3. Brand ===== */
 .card-brand {
-  background: linear-gradient(135deg, #ff6b35 0%, #f7c948 100%);
+  background: #fc4332;
   justify-content: center;
   align-items: center;
   text-align: center;
@@ -367,7 +367,7 @@ onBeforeUnmount(() => {
   height: 3rem;
   border-radius: 50%;
   background: #fff;
-  color: #ff6b35;
+  color: #dc2626;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -400,27 +400,27 @@ onBeforeUnmount(() => {
 
 /* ===== 4. Music Stats ===== */
 .card-music {
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  background: #c0fc61;
   justify-content: space-between;
 }
 .card-music-label {
-  color: rgba(255,255,255,0.9);
+  color: #3f6212;
   font-weight: 600;
   font-size: 0.85rem;
 }
 .card-music-num {
   font-size: clamp(2.25rem, 5vw, 3.5rem);
   font-weight: 800;
-  color: #fff;
+  color: #1a2e05;
   line-height: 1;
 }
 .card-music-sub {
-  color: rgba(255,255,255,0.8);
+  color: #4d7c0f;
   font-size: 0.8rem;
 }
 .card-music-bar {
   height: 6px;
-  background: rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.1);
   border-radius: 3px;
   overflow: hidden;
   margin-top: 0.5rem;
@@ -428,17 +428,17 @@ onBeforeUnmount(() => {
 .card-music-fill {
   width: 70%;
   height: 100%;
-  background: #fff;
+  background: #3f6212;
   border-radius: 3px;
 }
 
 /* ===== 5. Movie Stats ===== */
 .card-movie {
-  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  background: #b2ecfe;
   justify-content: center;
 }
 .card-movie-label {
-  color: rgba(255,255,255,0.85);
+  color: #0c4a6e;
   font-weight: 500;
   font-size: 0.85rem;
   margin-bottom: 0.25rem;
@@ -451,23 +451,23 @@ onBeforeUnmount(() => {
 .card-movie-num {
   font-size: clamp(2.5rem, 6vw, 4rem);
   font-weight: 800;
-  color: #fff;
+  color: #082f49;
   line-height: 1;
 }
 .card-movie-unit {
-  color: rgba(255,255,255,0.7);
+  color: #0369a1;
   font-weight: 600;
   font-size: 1rem;
 }
 .card-movie-sub {
-  color: rgba(255,255,255,0.6);
+  color: #0c4a6e;
   font-size: 0.75rem;
   margin-top: 0.5rem;
 }
 
 /* ===== 6. Photo Stats ===== */
 .card-photo {
-  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+  background: #134e4a;
   justify-content: center;
 }
 .card-photo-label {
@@ -512,24 +512,24 @@ onBeforeUnmount(() => {
 
 /* ===== 8. Quote ===== */
 .card-quote {
-  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  background: #fefce8;
   justify-content: center;
   padding: 1.25rem 1.5rem;
 }
 .card-quote-mark {
   margin-bottom: 0.5rem;
-  color: #db2777;
+  color: #d97706;
 }
 .card-quote-text {
   font-size: 0.8rem;
   line-height: 1.6;
-  color: #9d174d;
+  color: #78350f;
   font-style: italic;
 }
 
 /* ===== 9. Site Info ===== */
 .card-info {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: #ececec;
   border: 1px solid #cbd5e1;
 }
 .card-info-heading {

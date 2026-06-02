@@ -38,6 +38,10 @@ const props = defineProps({
     type: Number,
     default: 600,
   },
+  hoverColors: {
+    type: Array,
+    default: () => ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'],
+  },
   letterImages: {
     type: Array,
     default: () => [
@@ -58,20 +62,31 @@ const props = defineProps({
 
 const hoveredIndex = ref(null)
 const showOverlay = ref(false)
+const textHidden = ref(false)
 const chars = computed(() => Array.from(props.text || ''))
 let overlayTimer = 0
+let hideTextTimer = 0
 
 const startOverlayTimer = () => {
   window.clearTimeout(overlayTimer)
-  const lastLetterDelay = Math.max(chars.value.length - 1, 0) * props.letterDelay
-  const totalDelay = (lastLetterDelay * 1000) + props.springDuration
+  window.clearTimeout(hideTextTimer)
+  textHidden.value = false
+  const lastLetterIdx = Math.max(chars.value.length - 1, 0)
+  const totalDelay = (lastLetterIdx * props.letterDelay * 1000) + props.springDuration
   overlayTimer = window.setTimeout(() => {
     showOverlay.value = true
   }, totalDelay)
+
+  // Hide text after the last letter's sweep animation completes
+  const hideDelay = totalDelay + (lastLetterIdx * props.overlayDelay * 1000) + (props.overlayDuration * 1000) + 50
+  hideTextTimer = window.setTimeout(() => {
+    textHidden.value = true
+  }, hideDelay)
 }
 
 watch(() => props.text, () => {
   showOverlay.value = false
+  textHidden.value = false
   startOverlayTimer()
 })
 
@@ -81,6 +96,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.clearTimeout(overlayTimer)
+  window.clearTimeout(hideTextTimer)
 })
 </script>
 
@@ -92,19 +108,17 @@ onBeforeUnmount(() => {
         :key="`${char}-${index}`"
         class="reveal-letter"
         :class="{ 'is-space': char === ' ' }"
-        :style="{ '--letter-delay': `${index * letterDelay}s`, '--overlay-delay': `${index * overlayDelay}s` }"
+        :style="{ '--letter-delay': `${index * letterDelay}s`, '--overlay-delay': `${index * overlayDelay}s`, '--letter-hover-color': hoverColors[index % hoverColors.length] }"
         @mouseenter="hoveredIndex = index"
         @mouseleave="hoveredIndex = null"
       >
-        <span class="reveal-letter__ghost" :style="{ opacity: hoveredIndex === index ? 0 : 1 }">
+        <span class="reveal-letter__ghost" :style="{ opacity: textHidden || hoveredIndex === index ? 0 : 1 }">
           {{ char === ' ' ? '\u00A0' : char }}
         </span>
         <span
           class="reveal-letter__image"
           :style="{
             opacity: hoveredIndex === index ? 1 : 0,
-            backgroundImage: `url('${letterImages[index % letterImages.length]}')`,
-            backgroundPosition: hoveredIndex === index ? '10% center' : '0% center',
           }"
         >
           {{ char === ' ' ? '\u00A0' : char }}
@@ -144,10 +158,13 @@ onBeforeUnmount(() => {
   font-weight: 900;
   letter-spacing: -0.06em;
   cursor: pointer;
-  overflow: hidden;
   transform: scale(0);
   opacity: 0;
   animation: revealPop 0.9s var(--letter-delay) cubic-bezier(0.175, 0.885, 0.32, 1.3) forwards;
+}
+
+.reveal-letter__overlay {
+  clip-path: inset(0px);
 }
 
 .reveal-letter.is-space {
@@ -158,7 +175,7 @@ onBeforeUnmount(() => {
 .reveal-letter__image,
 .reveal-letter__overlay {
   display: block;
-  transition: opacity 0.12s ease, background-position 3s ease-in-out;
+  transition: opacity 0.12s ease;
 }
 
 .reveal-letter__ghost {
@@ -170,12 +187,7 @@ onBeforeUnmount(() => {
 .reveal-letter__image {
   position: absolute;
   inset: 0;
-  color: transparent;
-  background-size: cover;
-  background-repeat: no-repeat;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--letter-hover-color, #00e64d);
   text-shadow: none;
 }
 

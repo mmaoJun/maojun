@@ -265,7 +265,7 @@ const captureVideoFirstFrame = () => new Promise((resolve) => {
 
   video.addEventListener('seeked', drawFrame, { once: true })
   video.addEventListener('error', fallback, { once: true })
-  window.setTimeout(fallback, 4000)
+  window.setTimeout(fallback, 2000)
 })
 const initSmoothScroll = () => {
   lenis = new Lenis({ lerp: 0.09, smoothWheel: true, wheelMultiplier: 0.9 })
@@ -404,7 +404,7 @@ const playSiteLoader = async () => {
       }, '<0.03')
       .add(() => {
         randomizeTiles(false)
-        swapTimer = window.setInterval(() => randomizeTiles(false), 70)
+        swapTimer = window.setInterval(() => randomizeTiles(false), 100)
       }, '>-0.02')
       .to(leftTextNodes, {
         color: '#f2f2f2',
@@ -427,7 +427,7 @@ const playSiteLoader = async () => {
         duration: 0.2,
         ease: 'power1.out',
       }, '<0.06')
-      .to({}, { duration: 0.25 })
+      .to({}, { duration: 0.12 })
       .to(leftRows, {
         clipPath: 'polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)',
         duration: 0.42,
@@ -498,10 +498,10 @@ const playSiteLoader = async () => {
           return `${targetRadius}px`
         },
         opacity: 0,
-        duration: 0.85,
+        duration: 0.6,
         ease: 'power3.inOut',
       }, '<')
-      .to('.site-loader', { opacity: 0, duration: 0.2 }, '>-0.08')
+      .to('.site-loader', { opacity: 0, duration: 0.18 }, '>-0.06')
       .to('.hero-nav', { opacity: 1, duration: 0.35, ease: 'power2.out' }, '<0.02')
       .to('.page-jumpers', { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' }, '<0.04')
   })
@@ -657,13 +657,20 @@ const initHeroScroll = () => {
 
       const setNavWidthState = (isCompact, animate = true) => {
         const targetWidth = isCompact ? compactWidth : initialNavWidth
-        const method = animate ? gsap.to : gsap.set
-        method(nav, {
-          width: targetWidth,
-          duration: animate ? (isCompact ? 0.82 : 0.75) : 0,
-          ease: animate ? 'power1.inOut' : 'none',
-          overwrite: true,
-        })
+        if (animate) {
+          gsap.to(nav, {
+            width: targetWidth,
+            duration: isCompact ? 0.82 : 0.75,
+            ease: 'power1.inOut',
+            overwrite: true,
+          })
+        } else {
+          // 跳过静默 set：如果已有 width 动画正在运行（如从其他页面跳转到主页时的
+          // 展开动画），gsap.set + overwrite:true 会直接杀死动画导致跳变。
+          // 使用 isTweening 检测，让运行中的动画自然完成。
+          if (gsap.isTweening(nav, 'width')) return
+          gsap.set(nav, { width: targetWidth })
+        }
       }
 
       const syncNavWidthState = (animate = false) => {
@@ -896,6 +903,293 @@ const initCollectionHover = () => {
   })
 }
 
+const initSectionEntrances = () => {
+  const mm = gsap.matchMedia()
+  const allTriggers = []
+
+  // ── 1. Collection grid (mwg_effect000) ── staggered parallax entrance
+  mm.add('(min-width: 768px)', () => {
+    const mediaItems = homeRoot.value?.querySelectorAll('.mwg_effect000 .media')
+    if (!mediaItems?.length) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: homeRoot.value?.querySelector('.mwg_effect000'),
+        start: 'top 78%',
+        end: 'bottom 20%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.fromTo(mediaItems, {
+      y: () => gsap.utils.random(40, 100),
+      opacity: 0,
+      scale: 0.82,
+      rotate: () => gsap.utils.random(-6, 6),
+    }, {
+      y: 0,
+      opacity: 1,
+      scale: 1,
+      rotate: 0,
+      duration: 0.75,
+      ease: 'power3.out',
+      stagger: { each: 0.06, from: 'center' },
+    })
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  mm.add('(max-width: 767px)', () => {
+    const mediaItems = homeRoot.value?.querySelectorAll('.mwg_effect000 .media')
+    if (!mediaItems?.length) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: homeRoot.value?.querySelector('.mwg_effect000'),
+        start: 'top 85%',
+        end: 'bottom 20%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.fromTo(mediaItems, {
+      y: 30,
+      opacity: 0,
+      scale: 0.9,
+    }, {
+      y: 0,
+      opacity: 1,
+      scale: 1,
+      duration: 0.55,
+      ease: 'power2.out',
+      stagger: { each: 0.05, from: 'start' },
+    })
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  // ── 2. FeedbackSlider — fade up entrance ──
+  mm.add('(min-width: 1px)', () => {
+    const section = homeRoot.value?.querySelector('.feedback-slider-section')
+    if (!section) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 82%',
+        end: 'top 25%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.fromTo(section, {
+      y: 50,
+      opacity: 0,
+    }, {
+      y: 0,
+      opacity: 1,
+      duration: 0.7,
+      ease: 'power3.out',
+    })
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  // ── 3. SwapyDraggableCard — cards stagger entrance ──
+  mm.add('(min-width: 1px)', () => {
+    const section = homeRoot.value?.querySelector('.swapy-root')
+    if (!section) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 82%',
+        end: 'top 20%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.fromTo(section, { y: 40, opacity: 0 }, {
+      y: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
+    })
+
+    const cards = section.querySelectorAll('.sc-grid > div')
+    if (cards.length) {
+      tl.fromTo(cards, {
+        y: 40,
+        opacity: 0,
+        scale: 0.92,
+      }, {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        duration: 0.55,
+        ease: 'back.out(1.4)',
+        stagger: { each: 0.04, from: 'start' },
+      }, '-=0.3')
+    }
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  // ── 4. AnimatedSlideshow — headline + image entrance ──
+  mm.add('(min-width: 1px)', () => {
+    const section = homeRoot.value?.querySelector('.animated-slideshow-section')
+    if (!section) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 82%',
+        end: 'top 20%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.fromTo(section.querySelector('.animated-slideshow-eyebrow'), {
+      y: 24, opacity: 0,
+    }, {
+      y: 0, opacity: 1, duration: 0.5, ease: 'power2.out',
+    })
+    .fromTo(section.querySelector('.animated-slideshow-list'), {
+      x: -40, opacity: 0,
+    }, {
+      x: 0, opacity: 1, duration: 0.6, ease: 'power3.out',
+    }, '-=0.2')
+    .fromTo(section.querySelector('.animated-slideshow-image-wrap'), {
+      x: 40, opacity: 0, scale: 0.94,
+    }, {
+      x: 0, opacity: 1, scale: 1, duration: 0.65, ease: 'power3.out',
+    }, '-=0.35')
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  // ── 5. MarqueeCards — heading fade up, track scale in ──
+  mm.add('(min-width: 1px)', () => {
+    const section = homeRoot.value?.querySelector('.marquee-cards-section')
+    if (!section) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 82%',
+        end: 'top 20%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.fromTo(section.querySelector('.marquee-cards-heading'), {
+      y: 30, opacity: 0,
+    }, {
+      y: 0, opacity: 1, duration: 0.55, ease: 'power2.out',
+    })
+    .fromTo(section.querySelector('.marquee-cards-shell'), {
+      y: 40, opacity: 0, scale: 0.95,
+    }, {
+      y: 0, opacity: 1, scale: 1, duration: 0.65, ease: 'power3.out',
+    }, '-=0.2')
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  // ── 6. LayeredText — container entrance (text hover animation stays intact) ──
+  mm.add('(min-width: 1px)', () => {
+    const section = homeRoot.value?.querySelector('.layered-text')
+    if (!section) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 82%',
+        end: 'top 25%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.fromTo(section, {
+      y: 50,
+      opacity: 0,
+    }, {
+      y: 0,
+      opacity: 1,
+      duration: 0.75,
+      ease: 'power3.out',
+    })
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  // ── 7. ParallaxFloatingGallery — entrance ──
+  mm.add('(min-width: 1px)', () => {
+    const section = homeRoot.value?.querySelector('.parallax-floating-section')
+    if (!section) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 85%',
+        end: 'top 20%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.fromTo(section, {
+      y: 40, opacity: 0,
+    }, {
+      y: 0, opacity: 1, duration: 0.7, ease: 'power3.out',
+    })
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  // ── 8. SiteFooter — fade up entrance ──
+  mm.add('(min-width: 1px)', () => {
+    const section = homeRoot.value?.querySelector('.site-footer-v2')
+    if (!section) return
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: section,
+        start: 'top 88%',
+        end: 'top 30%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    const inner = section.querySelector('.site-footer-v2__inner')
+    if (inner) {
+      tl.fromTo(inner, {
+        y: 30, opacity: 0,
+      }, {
+        y: 0, opacity: 1, duration: 0.65, ease: 'power2.out',
+      })
+    } else {
+      tl.fromTo(section, {
+        y: 30, opacity: 0,
+      }, {
+        y: 0, opacity: 1, duration: 0.65, ease: 'power2.out',
+      })
+    }
+
+    allTriggers.push(tl.scrollTrigger)
+    return () => { tl.kill(); tl.scrollTrigger?.kill() }
+  })
+
+  cleanups.push(() => {
+    allTriggers.forEach((t) => t?.kill())
+    mm.revert()
+  })
+}
+
 const activateHome = async () => {
   if (homeActive || !loaderDone.value) return
   await nextTick()
@@ -909,6 +1203,7 @@ const activateHome = async () => {
   initHeroScroll()
   initCardScroll()
   initCollectionHover()
+  initSectionEntrances()
   homeActive = true
 
   // Refresh ScrollTrigger after layout settles (new sections: FeedbackSlider, SwapyDraggableCard)
@@ -962,10 +1257,19 @@ onMounted(async () => {
     return
   }
 
-  await homeContent.fetchContent()
+  // Start content fetch in background early — don't block the loader animation
+  const contentPromise = homeContent.fetchContent()
+
+  // Use fallback poster immediately; capture video first frame in background
   heroPoster.value = isHeroVideo.value
-    ? (getCachedHeroFrame() || await captureVideoFirstFrame())
+    ? (getCachedHeroFrame() || heroFallbackPoster.value)
     : heroSrc.value
+  if (isHeroVideo.value && !getCachedHeroFrame()) {
+    captureVideoFirstFrame().then((frame) => {
+      if (frame && frame !== heroFallbackPoster.value) heroPoster.value = frame
+    })
+  }
+
   navEl = document.querySelector('.hero-nav')
   navInitialWidth = getDefaultNavWidthPx()
   if (isHomePage.value) {
@@ -978,6 +1282,8 @@ onMounted(async () => {
   const loaderPlayed = sessionStorage.getItem('site-loader-played') === '1'
   if (!loaderPlayed && !ADMIN_PATHS.some(p => window.location.pathname.startsWith(p))) {
     await playSiteLoader()
+    // Ensure API content is ready before activating the home page
+    await contentPromise
     sessionStorage.setItem('site-loader-played', '1')
     if (route.path !== '/') {
       await router.replace('/')
@@ -986,6 +1292,8 @@ onMounted(async () => {
     return
   }
 
+  // Ensure content is loaded even when loader is skipped
+  await contentPromise
   showLoader.value = false
   loaderDone.value = true
   if (isHomePage.value) await activateHome()
@@ -1131,7 +1439,7 @@ onBeforeUnmount(() => {
             <img v-else class="hero-media-el" :src="heroSrc" alt="" />
           </div>
           <div class="hero-copy">
-            <RevealTextHero :text="homeContent.hero().revealText" text-color="#f8fafc" overlay-color="#ef4444"
+            <RevealTextHero :text="homeContent.hero().revealText" text-color="#f8fafc" overlay-color="#00e64d"
               font-size="clamp(3rem, 8vw, 7.8rem)" />
           </div>
           <span class="hero-tip">
@@ -1198,6 +1506,7 @@ onBeforeUnmount(() => {
   right: 0;
   z-index: 1100;
   pointer-events: none;
+  mix-blend-mode: difference;
 }
 
 .hero-nav-wrap :deep(.liquid-glass-nav),
@@ -1475,7 +1784,7 @@ p {
   font-size: 2.7rem;
   font-weight: 700;
   letter-spacing: .01em;
-  color: #888;
+  color: #fff;
   text-decoration: none;
   transition: color 0.25s ease;
 }
@@ -1497,7 +1806,7 @@ p {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #888;
+  color: #fff;
   text-decoration: none;
   font-size: 1.2rem;
   font-weight: 600;
@@ -1533,7 +1842,7 @@ p {
   width: 2.4rem;
   height: 2.4rem;
   border-radius: 50%;
-  color: #888;
+  color: #fff;
   opacity: 1;
   transition: color 0.25s ease, opacity 0.2s, transform 0.2s;
 }

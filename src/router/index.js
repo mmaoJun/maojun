@@ -15,7 +15,6 @@ import AdminMusicsEditor from '../components/admin-musics-editor.vue'
 import { isAuthenticated } from '../utils/auth'
 import {
   coverRouteCurtain,
-  emitRouteRevealStart,
   isRouteCurtainEnabled,
   revealRouteCurtain,
   setRouteContentVisible,
@@ -87,13 +86,10 @@ router.afterEach(async (to, from) => {
     return
   }
 
-  setRouteContentVisible(true)
-
   if (!isRouteCurtainEnabled()) {
     return
   }
 
-  emitRouteRevealStart()
   await revealRouteCurtain()
 })
 

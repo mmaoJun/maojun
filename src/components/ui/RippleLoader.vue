@@ -6,16 +6,17 @@ const props = defineProps({
   },
 })
 
+// Stagger matched to the ~1.0 s route-curtain hold — cells ripple outward
 const cells = [
   { delay: '0ms' },
-  { delay: '140ms' },
-  { delay: '280ms' },
-  { delay: '140ms' },
-  { delay: '280ms' },
-  { delay: '280ms' },
-  { delay: '420ms' },
-  { delay: '420ms' },
-  { delay: '560ms' },
+  { delay: '100ms' },
+  { delay: '200ms' },
+  { delay: '100ms' },
+  { delay: '200ms' },
+  { delay: '200ms' },
+  { delay: '300ms' },
+  { delay: '300ms' },
+  { delay: '400ms' },
 ]
 </script>
 
@@ -23,20 +24,20 @@ const cells = [
   <div class="ripple-loader" aria-hidden="true">
     <span
       v-for="(cell, index) in cells"
-      :key="`ripple-cell-${props.runKey}-${index}`"
+      :key="`rc-${props.runKey}-${index}`"
       class="ripple-loader__cell"
       :style="{
         '--cell-delay': cell.delay,
         '--cell-color': [
-          '#00FF87',
-          '#0CFD95',
-          '#17FBA2',
-          '#23F9B2',
-          '#30F7C3',
-          '#3DF5D4',
-          '#45F4DE',
-          '#53F1F0',
-          '#60EFFF',
+          '#d4d4d4',
+          '#dadada',
+          '#e0e0e0',
+          '#dadada',
+          '#e5e5e5',
+          '#e0e0e0',
+          '#ececec',
+          '#e0e0e0',
+          '#f0f0f0',
         ][index],
       }"
     ></span>
@@ -61,7 +62,7 @@ const cells = [
   background-color: transparent;
   box-sizing: border-box;
   border-radius: 4px;
-  animation: ripple 2.35s ease-in-out 1 both;
+  animation: ripple 1.4s ease-in-out 1 both;
   animation-delay: var(--cell-delay);
 }
 
@@ -71,17 +72,17 @@ const cells = [
     transform: scale(0.92);
   }
 
-  24% {
+  20% {
     background-color: transparent;
     transform: scale(0.92);
   }
 
-  40% {
+  42% {
     background-color: var(--cell-color);
     transform: scale(1);
   }
 
-  62% {
+  65% {
     background-color: rgb(255 255 255 / 0.08);
     transform: scale(0.985);
   }
