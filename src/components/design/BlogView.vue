@@ -6,6 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 gsap.registerPlugin(ScrollTrigger)
 
 const SECTION_HEIGHT = 1500
+const IMAGE_LOAD_TIMEOUT = 8000 // fallback if images fail to load
 
 const centerRef = ref(null)
 const parallaxRefs = ref([])
@@ -58,8 +59,78 @@ function setParallaxRef(el, index) {
   if (el) parallaxRefs.value[index] = el
 }
 
+/**
+ * Preload all hero images into browser cache so the DOM <img> elements
+ * decode quickly. Then wait for DOM images to actually finish layout.
+ */
+function preloadImages() {
+  const sources = [
+    '/blogPicture/blog.png',
+    ...parallaxImages.map((img) => img.src),
+  ]
+
+  let loaded = 0
+  const total = sources.length
+
+  return new Promise((resolve) => {
+    const fallback = setTimeout(() => {
+      console.warn('[BlogView] Image preload timed out, proceeding with', loaded, 'of', total, 'loaded')
+      resolve()
+    }, IMAGE_LOAD_TIMEOUT)
+
+    sources.forEach((src) => {
+      const img = new Image()
+      img.onload = img.onerror = () => {
+        loaded++
+        if (loaded >= total) {
+          clearTimeout(fallback)
+          resolve()
+        }
+      }
+      img.src = src
+    })
+  })
+}
+
+/** Wait for every parallax DOM <img> to finish decoding + layout */
+function waitForDomImages() {
+  const els = parallaxRefs.value.filter(Boolean)
+  if (els.length === 0) return Promise.resolve()
+
+  let done = 0
+  const total = els.length
+
+  return new Promise((resolve) => {
+    const fallback = setTimeout(() => resolve(), 3000)
+    els.forEach((el) => {
+      if (el.complete) {
+        done++
+        if (done >= total) { clearTimeout(fallback); resolve() }
+        return
+      }
+      el.addEventListener('load', () => {
+        done++
+        if (done >= total) { clearTimeout(fallback); resolve() }
+      }, { once: true })
+      el.addEventListener('error', () => {
+        done++
+        if (done >= total) { clearTimeout(fallback); resolve() }
+      }, { once: true })
+    })
+  })
+}
+
 onMounted(async () => {
   await nextTick()
+
+  // 1. Preload images into browser cache
+  await preloadImages()
+
+  // 2. Wait for DOM <img> elements to complete decoding + paint
+  await waitForDomImages()
+
+  // 3. Yield to the browser so layout settles
+  await new Promise(r => requestAnimationFrame(r))
 
   ctx = gsap.context(() => {
     // ── Center Image Clip-path Reveal ──

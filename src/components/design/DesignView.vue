@@ -4,14 +4,22 @@ import gsap from 'gsap'
 import { CustomEase } from 'gsap/CustomEase'
 import RandomLetterSwap from '../ui/RandomLetterSwap.vue'
 import BlogView from './BlogView.vue'
+import StudyExperience from './studyExperience.vue'
 
 // Register GSAP plugins
 gsap.registerPlugin(CustomEase)
 
 const containerRef = ref(null)
 const isMenuOpen = ref(false)
+const activeView = ref(sessionStorage.getItem('design-active-view') || 'blog')
 let ctx = null
 let menuCtx = null
+
+function switchView(view) {
+  activeView.value = view
+  sessionStorage.setItem('design-active-view', view)
+  closeMenu()
+}
 
 // Create custom easing (fallback to power2.out if CustomEase unavailable)
 try {
@@ -123,8 +131,9 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="containerRef" class="kinetic-nav-container">
-    <!-- ===== Blog Content (default visible) ===== -->
-    <BlogView />
+    <!-- ===== Content Views (switched by menu) ===== -->
+    <BlogView v-if="activeView === 'blog'" />
+    <StudyExperience v-else-if="activeView === 'study'" />
 
     <!-- ===== Header ===== -->
     <div class="site-header-wrapper">
@@ -202,10 +211,16 @@ onBeforeUnmount(() => {
                 </router-link>
               </li>
               <li class="menu-list-item">
-                <router-link to="/movies" class="nav-link" @click="closeMenu">
+                <a href="#" class="nav-link" @click.prevent="switchView('blog')">
                   <RandomLetterSwap label="BLOG" class="nav-link-text" />
                   <div class="nav-link-hover-bg"></div>
-                </router-link>
+                </a>
+              </li>
+              <li class="menu-list-item">
+                <a href="#" class="nav-link" @click.prevent="switchView('study')">
+                  <RandomLetterSwap label="STUDY EXPERIENCE" class="nav-link-text" />
+                  <div class="nav-link-hover-bg"></div>
+                </a>
               </li>
             </ul>
           </div>
