@@ -147,17 +147,30 @@ const uploading = computed(() => uploadingCount.value > 0)
 
 const downloadImage = async (id, fileName) => {
   try {
+    showMessage('正在准备下载...')
+    // 1. 获取 OSS 预签名下载 URL
     const { data } = await api.get(`/images/${id}/download`)
-    // 用隐藏 iframe 触发下载，避免异步 click 被浏览器弹窗拦截器阻止
-    const iframe = document.createElement('iframe')
-    iframe.style.display = 'none'
-    iframe.src = data.data
-    document.body.appendChild(iframe)
-    setTimeout(() => {
-      document.body.removeChild(iframe)
-    }, 60000)
+    const downloadUrl = data.data
+
+    // 2. 通过 fetch 获取文件 blob（OSS 已配置跨域）
+    const response = await fetch(downloadUrl)
+    if (!response.ok) throw new Error('文件下载失败')
+    const blob = await response.blob()
+
+    // 3. 创建临时 blob URL，用 <a> 标签触发浏览器原生保存对话框
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = fileName || 'image'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+
+    // 4. 延迟释放 blob URL
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+    showMessage('下载已开始')
   } catch (error) {
-    showMessage(error.response?.data?.message || '下载链接生成失败', 'error')
+    showMessage(error.response?.data?.message || error.message || '下载失败', 'error')
   }
 }
 
@@ -346,17 +359,30 @@ const deleteVideo = async (id) => {
 
 const downloadVideo = async (id, fileName) => {
   try {
+    showMessage('正在准备下载...')
+    // 1. 获取 OSS 预签名下载 URL
     const { data } = await api.get(`/videos/${id}/download`)
-    // 用隐藏 iframe 触发下载，避免异步 click 被浏览器弹窗拦截器阻止
-    const iframe = document.createElement('iframe')
-    iframe.style.display = 'none'
-    iframe.src = data.data
-    document.body.appendChild(iframe)
-    setTimeout(() => {
-      document.body.removeChild(iframe)
-    }, 60000)
+    const downloadUrl = data.data
+
+    // 2. 通过 fetch 获取文件 blob（OSS 已配置跨域）
+    const response = await fetch(downloadUrl)
+    if (!response.ok) throw new Error('文件下载失败')
+    const blob = await response.blob()
+
+    // 3. 创建临时 blob URL，用 <a> 标签触发浏览器原生保存对话框
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = fileName || 'video'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+
+    // 4. 延迟释放 blob URL
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+    showMessage('下载已开始')
   } catch (error) {
-    showMessage(error.response?.data?.message || '下载链接生成失败', 'error')
+    showMessage(error.response?.data?.message || error.message || '下载失败', 'error')
   }
 }
 
