@@ -313,12 +313,12 @@ onBeforeUnmount(disposeAll)
 
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=IBM+Plex+Mono:wght@500&display=swap");
-.pictures-page{position:relative;width:100%;height:100svh;overflow:hidden;background:#090909}
+.pictures-page{position:relative;width:100%;height:100svh;overflow:hidden;background:#fff}
 .gallery-canvas,.gallery-canvas :deep(canvas){width:100%;height:100%;display:block}
 .overlay{position:fixed;left:0;right:0;pointer-events:none;z-index:5}
 .overlay-center{inset:0;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;mix-blend-mode:exclusion}
 .overlay-center h1{margin:0;color:#fff;font-family:'Cormorant Garamond',serif;font-size:clamp(3rem,8vw,7rem);letter-spacing:-.05em;line-height:.92;font-weight:700}.overlay-center span{font-style:italic;font-weight:500}
-.overlay-bottom{bottom:2.25rem;text-align:center;padding:0 1rem;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:rgb(255 255 255 /.88)}
+.overlay-bottom{bottom:2.25rem;text-align:center;padding:0 1rem;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:rgb(0 0 0 /.78)}
 .overlay-bottom p{margin:.28rem 0;font-size:.7rem}.overlay-bottom .muted{opacity:.58}
 .fallback-gallery{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem;padding:1.5rem;color:rgb(255 255 255 /.8)}
 .fallback-title{margin:0;font-size:.95rem}.fallback-grid{width:min(100%,960px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem;max-height:70svh;overflow-y:auto}.fallback-grid img{width:100%;height:12rem;object-fit:cover;border-radius:1rem;border:1px solid rgb(255 255 255 /.08)}

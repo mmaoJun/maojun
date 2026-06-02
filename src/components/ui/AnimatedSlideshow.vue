@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { homePageConfig } from '../../config/siteContent'
+import VerticalCutReveal from './VerticalCutReveal.vue'
 
 const props = defineProps({
   eyebrow: { type: String, default: homePageConfig.animatedSlideshow.eyebrow },
@@ -8,20 +9,45 @@ const props = defineProps({
 })
 
 const activeSlide = ref(0)
+const revealRefs = {}
 
-const slideChars = computed(() =>
-  props.slides.map((slide) => Array.from(`${slide.title} `)),
-)
-
-const setActiveSlide = (index) => {
+function setActiveSlide(index) {
+  if (activeSlide.value === index) return
+  // Reset the previously-active slide
+  const prevId = props.slides[activeSlide.value]?.id
+  if (prevId && revealRefs[prevId]) {
+    revealRefs[prevId].reset()
+  }
   activeSlide.value = index
+  // Start the newly-active slide
+  const newId = props.slides[index]?.id
+  if (newId && revealRefs[newId]) {
+    revealRefs[newId].startAnimation()
+  }
 }
+
+onMounted(async () => {
+  await nextTick()
+  // Kick off the default active slide on first render
+  const defaultId = props.slides[activeSlide.value]?.id
+  if (defaultId && revealRefs[defaultId]) {
+    revealRefs[defaultId].startAnimation()
+  }
+})
 </script>
 
 <template>
   <section class="animated-slideshow-section">
     <div class="animated-slideshow-shell">
-      <p class="animated-slideshow-eyebrow">{{ props.eyebrow }}</p>
+      <p class="animated-slideshow-eyebrow">
+        <VerticalCutReveal
+          :text="props.eyebrow"
+          splitBy="characters"
+          :staggerDuration="0.03"
+          staggerFrom="first"
+          :transition="{ type: 'spring', stiffness: 200, damping: 21 }"
+        />
+      </p>
 
       <div class="animated-slideshow-layout">
         <div class="animated-slideshow-list">
@@ -34,25 +60,15 @@ const setActiveSlide = (index) => {
             @mouseenter="setActiveSlide(slideIndex)"
             @focus="setActiveSlide(slideIndex)"
           >
-            <span
-              v-for="(char, charIndex) in slideChars[slideIndex]"
-              :key="`${slide.id}-${charIndex}`"
-              class="animated-slideshow-char"
-              :style="{ '--char-delay': `${charIndex * 0.025}s` }"
-            >
-              <span
-                class="animated-slideshow-char__base"
-                :class="{ 'is-active': activeSlide === slideIndex }"
-              >
-                {{ char === ' ' ? '\u00A0' : char }}
-              </span>
-              <span
-                class="animated-slideshow-char__hover"
-                :class="{ 'is-active': activeSlide === slideIndex }"
-              >
-                {{ char === ' ' ? '\u00A0' : char }}
-              </span>
-            </span>
+            <VerticalCutReveal
+              :ref="(el) => { if (el) revealRefs[slide.id] = el }"
+              :text="slide.title"
+              splitBy="characters"
+              :staggerDuration="0.025"
+              staggerFrom="first"
+              :autoStart="false"
+              :transition="{ type: 'spring', stiffness: 200, damping: 21 }"
+            />
           </button>
         </div>
 
@@ -79,7 +95,7 @@ const setActiveSlide = (index) => {
   display: grid;
   place-items: center;
   padding: 2rem 1.5rem;
-  background: #faf9f5;
+  background: #c0fc61;
   color: #3d3929;
 }
 
@@ -122,38 +138,6 @@ const setActiveSlide = (index) => {
   letter-spacing: -0.06em;
   text-transform: uppercase;
   color: inherit;
-}
-
-.animated-slideshow-char {
-  position: relative;
-  display: inline-block;
-  overflow: hidden;
-}
-
-.animated-slideshow-char__base,
-.animated-slideshow-char__hover {
-  display: inline-block;
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease;
-  transition-delay: var(--char-delay);
-}
-
-.animated-slideshow-char__base {
-  opacity: 0.2;
-}
-
-.animated-slideshow-char__base.is-active {
-  transform: translateY(-110%);
-}
-
-.animated-slideshow-char__hover {
-  position: absolute;
-  inset: 0 auto auto 0;
-  opacity: 1;
-  transform: translateY(110%);
-}
-
-.animated-slideshow-char__hover.is-active {
-  transform: translateY(0%);
 }
 
 .animated-slideshow-image-wrap {

@@ -70,7 +70,12 @@ const duration = computed(() => `${effectiveCards.value.length * 2500}ms`)
 
 .marquee-cards-section {
   width: 100%;
-  padding: 5.5rem 0 10rem;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(2rem, 4vh, 4rem);
+  padding: 2rem 0;
   background: #fcfcfb;
   color: #0f172a;
   font-family: 'Poppins', sans-serif;
@@ -82,7 +87,8 @@ const duration = computed(() => `${effectiveCards.value.length * 2500}ms`)
   align-items: center;
   text-align: center;
   width: min(92%, 780px);
-  margin: 0 auto 2.5rem;
+  margin: 0 auto;
+  flex-shrink: 0;
 }
 
 .marquee-cards-heading h2 {
@@ -102,27 +108,29 @@ const duration = computed(() => `${effectiveCards.value.length * 2500}ms`)
 .marquee-cards-shell {
   position: relative;
   overflow: hidden;
-  width: min(100%, 1200px);
-  margin: 0 auto;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .marquee-cards-fade {
   position: absolute;
   top: 0;
   height: 100%;
-  width: 5rem;
+  width: clamp(3rem, 8vw, 8rem);
   z-index: 2;
   pointer-events: none;
 }
 
 .marquee-cards-fade--left {
   left: 0;
-  background: linear-gradient(to right, #fff 0%, rgb(255 255 255 / 0) 100%);
+  background: linear-gradient(to right, #fcfcfb 0%, rgb(252 252 251 / 0) 100%);
 }
 
 .marquee-cards-fade--right {
   right: 0;
-  background: linear-gradient(to left, #fff 0%, rgb(255 255 255 / 0) 100%);
+  background: linear-gradient(to left, #fcfcfb 0%, rgb(252 252 251 / 0) 100%);
 }
 
 .marquee-cards-track {
@@ -137,9 +145,9 @@ const duration = computed(() => `${effectiveCards.value.length * 2500}ms`)
 
 .marquee-card {
   position: relative;
-  width: 14rem;
-  height: 20rem;
-  margin: 0 1rem;
+  width: clamp(14rem, 18vw, 22rem);
+  height: clamp(32rem, 60vh, 48rem);
+  margin: 0 clamp(0.6rem, 1.2vw, 1.5rem);
   overflow: hidden;
   transition: transform 0.3s ease;
 }
@@ -193,12 +201,18 @@ const duration = computed(() => `${effectiveCards.value.length * 2500}ms`)
 
 @media (max-width: 768px) {
   .marquee-cards-section {
-    padding: 4rem 0 1.5rem;
+    min-height: auto;
+    padding: 4rem 0;
+    gap: 2rem;
+  }
+
+  .marquee-cards-shell {
+    flex: none;
   }
 
   .marquee-card {
     width: 12rem;
-    height: 17rem;
+    height: 28rem;
     margin: 0 0.75rem;
   }
 

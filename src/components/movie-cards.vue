@@ -204,7 +204,7 @@ onBeforeUnmount(() => {
 .movie-cards-page {
   position: relative;
   min-height: 100svh;
-  background: #faf5e5;
+  background: #fff;
   overflow: hidden;
 }
 
@@ -212,17 +212,6 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-.movie-cards-page::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(90deg, #111 1px, transparent 1px);
-  background-size: 50px 100%;
-  pointer-events: none;
-  mask-image: linear-gradient(to bottom, rgb(235, 228, 228) 0%, rgba(226, 7, 7, 0) 70%);
-  -webkit-mask-image: linear-gradient(to bottom, rgb(235, 225, 225) 0%, rgba(196, 18, 18, 0) 70%);
-  z-index: 0;
-}
 
 .movie-cards-page * {
   margin: 0;

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { motion } from 'motion-v'
+import BlurFade from './BlurFade.vue'
 
 const MotionDiv = motion.div
 const MotionH3 = motion.h3
@@ -97,13 +98,15 @@ const labels = computed(() => states.value.map(s => s.label))
     :transition="transition"
   >
     <div class="fs-inner">
-      <MotionH3
-        class="fs-title"
-        :animate="{ color: currentAnim.titleColor }"
-        :transition="transition"
-      >
-        {{ title }}
-      </MotionH3>
+      <BlurFade :delay="0.25" inView>
+        <MotionH3
+          class="fs-title"
+          :animate="{ color: currentAnim.titleColor }"
+          :transition="transition"
+        >
+          {{ title }}
+        </MotionH3>
+      </BlurFade>
 
       <div class="fs-face">
         <div class="fs-eyes">
@@ -160,7 +163,9 @@ const labels = computed(() => states.value.map(s => s.label))
             :key="i"
             class="fs-note-cell"
           >
-            <h1 :style="{ color: state.noteColor }">{{ state.noteText }}</h1>
+            <BlurFade :delay="0.5" inView>
+              <h1 :style="{ color: state.noteColor }">{{ state.noteText }}</h1>
+            </BlurFade>
           </div>
         </MotionDiv>
       </div>
@@ -214,18 +219,23 @@ const labels = computed(() => states.value.map(s => s.label))
           </MotionDiv>
         </div>
         <div class="fs-labels">
-          <MotionSpan
+          <BlurFade
             v-for="(text, i) in labels"
             :key="text"
-            class="fs-label"
-            :animate="{
-              color: currentAnim.titleColor,
-              opacity: selectedIndex === i ? 1 : 0.6,
-            }"
-            :transition="transition"
+            :delay="0.25 * (i + 3)"
+            inView
           >
-            {{ text }}
-          </MotionSpan>
+            <MotionSpan
+              class="fs-label"
+              :animate="{
+                color: currentAnim.titleColor,
+                opacity: selectedIndex === i ? 1 : 0.6,
+              }"
+              :transition="transition"
+            >
+              {{ text }}
+            </MotionSpan>
+          </BlurFade>
         </div>
       </div>
     </div>

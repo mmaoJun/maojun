@@ -970,136 +970,7 @@ const initSectionEntrances = () => {
     return () => { tl.kill(); tl.scrollTrigger?.kill() }
   })
 
-  // ── 2. FeedbackSlider — fade up entrance ──
-  mm.add('(min-width: 1px)', () => {
-    const section = homeRoot.value?.querySelector('.feedback-slider-section')
-    if (!section) return
-
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: section,
-        start: 'top 82%',
-        end: 'top 25%',
-        toggleActions: 'play none none reverse',
-      },
-    })
-
-    tl.fromTo(section, {
-      y: 50,
-      opacity: 0,
-    }, {
-      y: 0,
-      opacity: 1,
-      duration: 0.7,
-      ease: 'power3.out',
-    })
-
-    allTriggers.push(tl.scrollTrigger)
-    return () => { tl.kill(); tl.scrollTrigger?.kill() }
-  })
-
-  // ── 3. SwapyDraggableCard — cards stagger entrance ──
-  mm.add('(min-width: 1px)', () => {
-    const section = homeRoot.value?.querySelector('.swapy-root')
-    if (!section) return
-
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: section,
-        start: 'top 82%',
-        end: 'top 20%',
-        toggleActions: 'play none none reverse',
-      },
-    })
-
-    tl.fromTo(section, { y: 40, opacity: 0 }, {
-      y: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
-    })
-
-    const cards = section.querySelectorAll('.sc-grid > div')
-    if (cards.length) {
-      tl.fromTo(cards, {
-        y: 40,
-        opacity: 0,
-        scale: 0.92,
-      }, {
-        y: 0,
-        opacity: 1,
-        scale: 1,
-        duration: 0.55,
-        ease: 'back.out(1.4)',
-        stagger: { each: 0.04, from: 'start' },
-      }, '-=0.3')
-    }
-
-    allTriggers.push(tl.scrollTrigger)
-    return () => { tl.kill(); tl.scrollTrigger?.kill() }
-  })
-
-  // ── 4. AnimatedSlideshow — headline + image entrance ──
-  mm.add('(min-width: 1px)', () => {
-    const section = homeRoot.value?.querySelector('.animated-slideshow-section')
-    if (!section) return
-
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: section,
-        start: 'top 82%',
-        end: 'top 20%',
-        toggleActions: 'play none none reverse',
-      },
-    })
-
-    tl.fromTo(section.querySelector('.animated-slideshow-eyebrow'), {
-      y: 24, opacity: 0,
-    }, {
-      y: 0, opacity: 1, duration: 0.5, ease: 'power2.out',
-    })
-    .fromTo(section.querySelector('.animated-slideshow-list'), {
-      x: -40, opacity: 0,
-    }, {
-      x: 0, opacity: 1, duration: 0.6, ease: 'power3.out',
-    }, '-=0.2')
-    .fromTo(section.querySelector('.animated-slideshow-image-wrap'), {
-      x: 40, opacity: 0, scale: 0.94,
-    }, {
-      x: 0, opacity: 1, scale: 1, duration: 0.65, ease: 'power3.out',
-    }, '-=0.35')
-
-    allTriggers.push(tl.scrollTrigger)
-    return () => { tl.kill(); tl.scrollTrigger?.kill() }
-  })
-
-  // ── 5. MarqueeCards — heading fade up, track scale in ──
-  mm.add('(min-width: 1px)', () => {
-    const section = homeRoot.value?.querySelector('.marquee-cards-section')
-    if (!section) return
-
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: section,
-        start: 'top 82%',
-        end: 'top 20%',
-        toggleActions: 'play none none reverse',
-      },
-    })
-
-    tl.fromTo(section.querySelector('.marquee-cards-heading'), {
-      y: 30, opacity: 0,
-    }, {
-      y: 0, opacity: 1, duration: 0.55, ease: 'power2.out',
-    })
-    .fromTo(section.querySelector('.marquee-cards-shell'), {
-      y: 40, opacity: 0, scale: 0.95,
-    }, {
-      y: 0, opacity: 1, scale: 1, duration: 0.65, ease: 'power3.out',
-    }, '-=0.2')
-
-    allTriggers.push(tl.scrollTrigger)
-    return () => { tl.kill(); tl.scrollTrigger?.kill() }
-  })
-
-  // ── 6. LayeredText — container entrance (text hover animation stays intact) ──
+  // ── 2. LayeredText — container entrance (text hover animation stays intact) ──
   mm.add('(min-width: 1px)', () => {
     const section = homeRoot.value?.querySelector('.layered-text')
     if (!section) return
@@ -1127,7 +998,7 @@ const initSectionEntrances = () => {
     return () => { tl.kill(); tl.scrollTrigger?.kill() }
   })
 
-  // ── 7. ParallaxFloatingGallery — entrance ──
+  // ── 3. ParallaxFloatingGallery — entrance ──
   mm.add('(min-width: 1px)', () => {
     const section = homeRoot.value?.querySelector('.parallax-floating-section')
     if (!section) return
@@ -1151,7 +1022,7 @@ const initSectionEntrances = () => {
     return () => { tl.kill(); tl.scrollTrigger?.kill() }
   })
 
-  // ── 8. SiteFooter — fade up entrance ──
+  // ── 4. SiteFooter — fade up entrance ──
   mm.add('(min-width: 1px)', () => {
     const section = homeRoot.value?.querySelector('.site-footer-v2')
     if (!section) return
@@ -1190,6 +1061,96 @@ const initSectionEntrances = () => {
   })
 }
 
+const initCardCoverRotation = () => {
+  const cardItems = homeRoot.value?.querySelectorAll('.card-cover-item')
+  if (!cardItems?.length) return
+
+  // Card 1 is the base — no rotation
+  // Cards 2-4 rotate into place as they scroll up to cover the previous card
+  const rotations = [0, 7, -5, 8]
+  const yOffsets = [0, 30, 25, 35]
+
+  cardItems.forEach((item, i) => {
+    if (i === 0) return
+
+    gsap.set(item, { transformOrigin: '50% 85%' })
+
+    // Rotation + slide-up tied to scroll
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: item,
+        start: 'top bottom+=10%',
+        end: 'top top',
+        scrub: 1.4,
+      },
+    })
+
+    tl.fromTo(item,
+      { rotate: rotations[i], y: yOffsets[i] },
+      { rotate: 0, y: 0, ease: 'none' },
+    )
+
+    cleanups.push(() => {
+      tl.scrollTrigger?.kill()
+      tl.kill()
+    })
+  })
+
+  // ── Content entrance animations ──
+  // Each card's content fades/floats in when the card starts covering the previous one
+
+  // Card 2: SwapyDraggableCard — grid cards stagger in
+  const swapyGridItems = cardItems[1]?.querySelectorAll('.sc-grid > div')
+  if (swapyGridItems?.length) {
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: cardItems[1],
+        start: 'top 58%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+    tl.fromTo(swapyGridItems,
+      { y: 36, opacity: 0, scale: 0.9 },
+      { y: 0, opacity: 1, scale: 1, duration: 0.5, stagger: 0.04, ease: 'back.out(1.3)' },
+    )
+    cleanups.push(() => { tl.scrollTrigger?.kill(); tl.kill() })
+  }
+
+  // Card 3: AnimatedSlideshow — eyebrow + list + image entrance
+  const slideshowEyebrow = cardItems[2]?.querySelector('.animated-slideshow-eyebrow')
+  const slideshowList = cardItems[2]?.querySelector('.animated-slideshow-list')
+  const slideshowImage = cardItems[2]?.querySelector('.animated-slideshow-image-wrap')
+  if (slideshowEyebrow && slideshowList && slideshowImage) {
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: cardItems[2],
+        start: 'top 58%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+    tl.fromTo(slideshowEyebrow, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: 'power2.out' })
+      .fromTo(slideshowList, { x: -30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: 'power3.out' }, '-=0.2')
+      .fromTo(slideshowImage, { x: 30, opacity: 0, scale: 0.94 }, { x: 0, opacity: 1, scale: 1, duration: 0.55, ease: 'power3.out' }, '-=0.35')
+    cleanups.push(() => { tl.scrollTrigger?.kill(); tl.kill() })
+  }
+
+  // Card 4: MarqueeCards — heading + track fade up
+  const marqueeHeading = cardItems[3]?.querySelector('.marquee-cards-heading')
+  const marqueeShell = cardItems[3]?.querySelector('.marquee-cards-shell')
+  if (marqueeHeading && marqueeShell) {
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: cardItems[3],
+        start: 'top 58%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+    tl.fromTo(marqueeHeading, { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'power2.out' })
+      .fromTo(marqueeShell, { y: 35, opacity: 0, scale: 0.95 }, { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' }, '-=0.2')
+    cleanups.push(() => { tl.scrollTrigger?.kill(); tl.kill() })
+  }
+}
+
 const activateHome = async () => {
   if (homeActive || !loaderDone.value) return
   await nextTick()
@@ -1204,6 +1165,7 @@ const activateHome = async () => {
   initCardScroll()
   initCollectionHover()
   initSectionEntrances()
+  initCardCoverRotation()
   homeActive = true
 
   // Refresh ScrollTrigger after layout settles (new sections: FeedbackSlider, SwapyDraggableCard)
@@ -1457,13 +1419,20 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <FeedbackSlider :config="feedbackSliderConfig" />
-
-    <SwapyDraggableCard />
-
-    <AnimatedSlideshow :eyebrow="homeContent.animatedSlideshow().eyebrow" :slides="homeContent.animatedSlideshow().slides" />
-
-    <MarqueeCards :heading="homeContent.marqueeCards().heading" :description="homeContent.marqueeCards().description" :cards="homeContent.marqueeCards().cards" />
+    <div class="card-cover-stack">
+      <div class="card-cover-item card-cover-item--1">
+        <FeedbackSlider :config="feedbackSliderConfig" />
+      </div>
+      <div class="card-cover-item card-cover-item--2">
+        <SwapyDraggableCard />
+      </div>
+      <div class="card-cover-item card-cover-item--3">
+        <AnimatedSlideshow :eyebrow="homeContent.animatedSlideshow().eyebrow" :slides="homeContent.animatedSlideshow().slides" />
+      </div>
+      <div class="card-cover-item card-cover-item--4">
+        <MarqueeCards :heading="homeContent.marqueeCards().heading" :description="homeContent.marqueeCards().description" :cards="homeContent.marqueeCards().cards" />
+      </div>
+    </div>
 
     <section class="sticky">
       <div class="sticky-header">
@@ -1878,19 +1847,6 @@ p {
   will-change: transform
 }
 
-.hero-frame::before {
-  content: '';
-  position: absolute;
-  inset: -35%;
-  pointer-events: none;
-  z-index: 1;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  mix-blend-mode: soft-light;
-  opacity: .16;
-  filter: contrast(135%) brightness(108%);
-  animation: filmGrainMove 1.2s steps(4, end) infinite, filmGrainFlicker 2.4s ease-in-out infinite alternate
-}
 
 .hero-frame::after {
   content: '';
@@ -1943,62 +1899,13 @@ p {
   z-index: 3
 }
 
-@keyframes filmGrainMove {
-  0% {
-    transform: translate3d(0, 0, 0)
-  }
-
-  15% {
-    transform: translate3d(-1.2%, -.8%, 0)
-  }
-
-  30% {
-    transform: translate3d(.9%, .7%, 0)
-  }
-
-  45% {
-    transform: translate3d(-.8%, 1.1%, 0)
-  }
-
-  60% {
-    transform: translate3d(1.1%, -.6%, 0)
-  }
-
-  75% {
-    transform: translate3d(-.7%, -1%, 0)
-  }
-
-  90% {
-    transform: translate3d(.8%, .6%, 0)
-  }
-
-  100% {
-    transform: translate3d(0, 0, 0)
-  }
-}
-
-@keyframes filmGrainFlicker {
-  0% {
-    opacity: .12
-  }
-
-  50% {
-    opacity: .18
-  }
-
-  100% {
-    opacity: .16
-  }
-}
 
 .mwg_effect000 {
   min-height: 100svh;
   text-align: center;
   align-content: center;
   z-index: 4;
-  background-color: #000;
-  background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 8%) 1px, transparent 0);
-  background-size: 18px 18px
+  background-color: #000
 }
 
 .mwg_effect000 {
@@ -2032,6 +1939,58 @@ p {
   pointer-events: none;
   will-change: transform;
   box-shadow: 0 14px 32px rgb(0 0 0 / 18%)
+}
+
+/* ===== Card Cover Stack ===== */
+.card-cover-stack {
+  position: relative;
+}
+
+.card-cover-item {
+  position: sticky;
+  top: 0;
+  min-height: 100svh;
+}
+
+.card-cover-item--1 { z-index: 1; }
+.card-cover-item--2 { z-index: 2; }
+.card-cover-item--3 { z-index: 3; }
+.card-cover-item--4 { z-index: 4; }
+
+.card-cover-item:not(.card-cover-item--1) {
+  overflow: hidden;
+}
+
+.card-cover-item--2 {
+  border-radius: 2.5rem 0 0 0;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
+}
+
+.card-cover-item--3 {
+  border-radius: 5rem 0 0 0;
+  box-shadow: 0 14px 56px rgba(0, 0, 0, 0.26);
+}
+
+.card-cover-item--4 {
+  border-radius: 8rem 0 0 0;
+  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 767px) {
+  .card-cover-item--2 {
+    border-radius: 1.75rem 0 0 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  }
+
+  .card-cover-item--3 {
+    border-radius: 3.5rem 0 0 0;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.22);
+  }
+
+  .card-cover-item--4 {
+    border-radius: 5.5rem 0 0 0;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.28);
+  }
 }
 
 .sticky {
