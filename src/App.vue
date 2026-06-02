@@ -22,6 +22,9 @@ import MarqueeCards from './components/ui/MarqueeCards.vue'
 import AnimatedSlideshow from './components/ui/AnimatedSlideshow.vue'
 import RouteCurtain from './components/ui/RouteCurtain.vue'
 import MenuToggleIcon from './components/ui/MenuToggleIcon.vue'
+import FluidMenu from './components/ui/FluidMenu.vue'
+import { User, X, LogIn, Palette, Mail, Bell } from '@lucide/vue'
+import AlertCard from './components/design/AlertCard.vue'
 import {
   setRouteCurtainEnabled,
   subscribeRouteContentVisible,
@@ -37,9 +40,15 @@ const isHomePage = computed(() => route.path === '/')
 const isAboutPage = computed(() => route.path === '/about')
 const ADMIN_PATHS = ['/login', '/manage-images', '/home-editor', '/movies-editor', '/pictures-editor', '/about-editor', '/musics-editor']
 const isAdminRoute = computed(() => ADMIN_PATHS.some(p => route.path.startsWith(p)))
+const isHideShellRoute = computed(() => !!route.meta.hideShell)
 const homeConfig = homePageConfig
 const aboutConfig = aboutPageConfig
 const navLinks = siteNavLinks
+const loginMenuItems = [
+  { label: 'Login', icon: LogIn, to: '/login' },
+  { label: 'Design', icon: Palette, to: '/design' },
+  { label: 'Contact', icon: Mail, to: '/about' },
+]
 const footerInfo = computed(() => homeContent.footerData())
 const feedbackSliderConfig = computed(() => homeContent.feedbackSlider())
 
@@ -60,6 +69,22 @@ const cardBack1 = computed(() => homeContent.cardFlip().cardBackImages[0])
 const cardBack2 = computed(() => homeContent.cardFlip().cardBackImages[1])
 const cardBack3 = computed(() => homeContent.cardFlip().cardBackImages[2])
 const hitokoto2 = ref('')
+
+// ---- AlertCard demo state ----
+const isAlertVisible = ref(true)
+
+function handleAlertButtonClick() {
+  router.push('/design')
+}
+
+function handleAlertDismiss() {
+  isAlertVisible.value = false
+}
+
+function resetAlert() {
+  isAlertVisible.value = true
+}
+
 const routeContentVisible = ref(true)
 const navReady = ref(false)
 const homeRoot = ref(null)
@@ -589,6 +614,14 @@ const navigateWithNavTransition = (path) => {
     }
   }
   router.push(path)
+}
+
+const onLoginMenuItem = ({ item }) => {
+  if (item.to) {
+    navigateWithNavTransition(item.to)
+  } else if (item.href) {
+    window.open(item.href, '_blank')
+  }
 }
 
 const getPageBottom = () => {
@@ -1289,7 +1322,7 @@ watch(() => route.path, (newPath, oldPath) => {
 })
 
 watch(isHomePage, async (isHome) => {
-  if (isAdminRoute.value) {
+  if (isAdminRoute.value || isHideShellRoute.value) {
     deactivateHome()
     showLoader.value = false
     loaderDone.value = true
@@ -1312,7 +1345,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <RouterView v-if="isAdminRoute" />
+  <RouterView v-if="isAdminRoute || isHideShellRoute" />
   <template v-else>
     <RouteCurtain />
     <div :style="{ visibility: routeContentVisible ? 'visible' : 'hidden' }">
@@ -1365,12 +1398,13 @@ onBeforeUnmount(() => {
           <svg v-else-if="link.icon === 'film'" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="9"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="2" y1="12" x2="9" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="12" y1="15" x2="12" y2="22"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="15" y1="12" x2="22" y2="12"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
         </a>
       </nav>
-      <a class="hero-settings" href="/login" @click.prevent="navigateWithNavTransition('/login')" title="Settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-          <circle cx="12" cy="7" r="4"/>
-        </svg>
-      </a>
+      <FluidMenu
+        :toggle-icon="User"
+        :close-icon="X"
+        :items="loginMenuItems"
+        class="hero-login-menu"
+        @item-click="onLoginMenuItem"
+      />
     </LiquidGlassNav>
 
     <button
@@ -1460,6 +1494,30 @@ onBeforeUnmount(() => {
       :social-links="footerInfo.socialLinks" :main-links="footerInfo.mainLinks" :legal-links="footerInfo.legalLinks"
       :copyright="footerInfo.copyright" />
   </main>
+
+    <!-- ===== AlertCard Demo (fixed overlay, bottom-left) ===== -->
+    <div v-if="isHomePage" class="alert-demo-area">
+      <Transition name="alert-fade">
+        <button
+          v-if="!isAlertVisible"
+          class="alert-reset-btn"
+          @click="resetAlert"
+        >
+          Show Alert Card
+        </button>
+      </Transition>
+
+      <AlertCard
+        :is-visible="isAlertVisible"
+        title="Blog 开发中"
+        description="Blog 页面正在施工中，部分内容尚未完成。点击下方按钮提前预览最新进度。"
+        button-text="前往 Blog"
+        :show-dismiss="true"
+        @button-click="handleAlertButtonClick"
+        @dismiss="handleAlertDismiss"
+      />
+    </div>
+
   <RouterView v-else />
     </div>
   </template>
@@ -1803,21 +1861,16 @@ p {
   70% { transform: translateY(-3px); }
 }
 
-.hero-settings {
+.hero-login-menu {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 50%;
-  color: #fff;
   opacity: 1;
-  transition: color 0.25s ease, opacity 0.2s, transform 0.2s;
+  transition: opacity 0.2s;
 }
-.hero-settings:hover {
-  color: #fa5c2f;
-  transform: scale(1.1);
+.hero-login-menu:hover {
+  opacity: 0.9;
 }
 
 .hero {
@@ -1938,7 +1991,7 @@ p {
   display: block;
   pointer-events: none;
   will-change: transform;
-  box-shadow: 0 14px 32px rgb(0 0 0 / 18%)
+  box-shadow: none
 }
 
 /* ===== Card Cover Stack ===== */
@@ -1963,33 +2016,27 @@ p {
 
 .card-cover-item--2 {
   border-radius: 2.5rem 0 0 0;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
 }
 
 .card-cover-item--3 {
   border-radius: 5rem 0 0 0;
-  box-shadow: 0 14px 56px rgba(0, 0, 0, 0.26);
 }
 
 .card-cover-item--4 {
   border-radius: 8rem 0 0 0;
-  box-shadow: 0 16px 64px rgba(0, 0, 0, 0.35);
 }
 
 @media (max-width: 767px) {
   .card-cover-item--2 {
     border-radius: 1.75rem 0 0 0;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   }
 
   .card-cover-item--3 {
     border-radius: 3.5rem 0 0 0;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.22);
   }
 
   .card-cover-item--4 {
     border-radius: 5.5rem 0 0 0;
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.28);
   }
 }
 
@@ -2165,9 +2212,8 @@ p {
     background: transparent
   }
 
-  .hero-settings {
-    width: 2rem;
-    height: 2rem;
+  .hero-login-menu {
+    transform: scale(0.85);
   }
 
   .hero-frame {
@@ -2291,6 +2337,53 @@ p {
   .card-back {
     transform-style: preserve-3d
   }
+}
+
+/* ================================================================
+   AlertCard Demo Area
+   ================================================================ */
+.alert-demo-area {
+  position: fixed;
+  bottom: clamp(1.5rem, 4vh, 2.5rem);
+  right: clamp(1.5rem, 4vw, 3rem);
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.alert-reset-btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  background: rgb(0 0 0 / 62%);
+  color: #f5f5f5;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 30%);
+  transition: all 0.2s ease;
+}
+
+.alert-reset-btn:hover {
+  background: rgb(255 255 255 / 15%);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 40%);
+  transform: translateY(-1px);
+}
+
+/* Fade transition for the reset button */
+.alert-fade-enter-active,
+.alert-fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.alert-fade-enter-from,
+.alert-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 :global(input),
