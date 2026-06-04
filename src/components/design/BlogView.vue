@@ -2,6 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import ModalDialog from '@/components/ui/ModalDialog.vue'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -13,14 +14,61 @@ const parallaxRefs = ref([])
 const scheduleRef = ref(null)
 
 const scheduleItems = [
-  { title: '完成博客页面设计', date: '2026-06-02' },
-  { title: '修复导航动画 Bug', date: '2026-06-02' },
-  { title: '优化视差滚动效果', date: '2026-06-01' },
-  { title: '更新菜单交互逻辑', date: '2026-06-01' },
-  { title: '重构 DesignView 页面', date: '2026-05-30' },
-  { title: '添加 RandomLetterSwap 组件', date: '2026-05-30' },
-  { title: '项目初始化与配置', date: '2026-05-28' },
+  {
+    title: '完成博客页面设计',
+    date: '2026-06-02',
+    description: '基于 Smooth Scroll Hero 模式重构了 BlogView 页面，集成了 GSAP ScrollTrigger 驱动的视差图片动画、中心图片 clip-path 揭示效果，以及日程列表的入场动画。整体采用 Playfair Display 衬线字体搭配 Manrope 无衬线字体，营造优雅的阅读氛围。',
+    tags: ['设计', 'GSAP', '前端'],
+  },
+  {
+    title: '修复导航动画 Bug',
+    date: '2026-06-02',
+    description: '排查并修复了 FluidMenu 组件在路由切换时动画状态残留的问题。通过 onBeforeUnmount 生命周期钩子正确清理了 GSAP context，确保离开页面时所有 tweens 和 ScrollTrigger 实例被 kill，防止内存泄漏和动画冲突。',
+    tags: ['Bug修复', 'GSAP', '导航'],
+  },
+  {
+    title: '优化视差滚动效果',
+    date: '2026-06-01',
+    description: '对 DesignView 和 BlogView 中的视差元素进行了性能优化：添加了 will-change 属性提示浏览器提前合成、使用 transform3d 启用 GPU 加速、通过 matchMedia 在移动端降级视差强度，确保低性能设备也有流畅体验。',
+    tags: ['性能', '视差', '优化'],
+  },
+  {
+    title: '更新菜单交互逻辑',
+    date: '2026-06-01',
+    description: '重新设计了 FluidMenu 的交互状态机，解决了快速 hover 切换时的动画抖动问题。新增了菜单项的进入/离开延迟逻辑，使用 gsap.timeline 编排多阶段过渡动画，让整体交互更加顺滑自然。',
+    tags: ['交互', '菜单', 'GSAP'],
+  },
+  {
+    title: '重构 DesignView 页面',
+    date: '2026-05-30',
+    description: '将 DesignView 页面从分散的组件重构为统一的 Kinetic Nav 架构。引入了可复用的 UI 组件体系（RevealTextHero、LayeredText、MarqueeCards 等），建立了清晰的数据流和动画生命周期管理模式。',
+    tags: ['重构', '架构', '组件化'],
+  },
+  {
+    title: '添加 RandomLetterSwap 组件',
+    date: '2026-05-30',
+    description: '开发了一个创意文字效果组件，通过 GSAP 驱动的逐帧动画实现字母随机交换效果。支持自定义交换速度、字符集和触发时机，可应用于标题、按钮等多种场景，为页面增添动态趣味性。',
+    tags: ['GSAP', '文字动画', '组件'],
+  },
+  {
+    title: '项目初始化与配置',
+    date: '2026-05-28',
+    description: '搭建 myWebsite 全栈项目脚手架：前端采用 Vue 3 + Vite 8 + Vue Router 5，后端采用 Spring Boot 3.3.5 + MyBatis-Plus。配置了 JWT 无状态认证、Aliyun OSS 对象存储、以及基于发布订阅模式的路由转场动画系统。',
+    tags: ['初始化', '全栈', '配置'],
+  },
 ]
+
+const showModal = ref(false)
+const selectedItem = ref(null)
+
+function openDetail(item) {
+  selectedItem.value = item
+  showModal.value = true
+}
+
+function closeDetail() {
+  showModal.value = false
+}
 
 const parallaxImages = [
   {
@@ -65,7 +113,7 @@ function setParallaxRef(el, index) {
  */
 function preloadImages() {
   const sources = [
-    '/blogPicture/blog.png',
+    '/blogPicture/home.jpg',
     ...parallaxImages.map((img) => img.src),
   ]
 
@@ -284,7 +332,7 @@ onBeforeUnmount(() => {
         ref="centerRef"
         class="ssh-center-image"
         :style="{
-          backgroundImage: `url(/blogPicture/blog.png)`,
+          backgroundImage: `url(/blogPicture/home.jpg)`,
           clipPath: 'polygon(25% 25%, 75% 25%, 75% 75%, 25% 75%)',
         }"
       />
@@ -313,11 +361,37 @@ onBeforeUnmount(() => {
         v-for="(item, i) in scheduleItems"
         :key="i"
         class="schedule-item"
+        role="button"
+        tabindex="0"
+        @click="openDetail(item)"
+        @keydown.enter="openDetail(item)"
+        @keydown.space.prevent="openDetail(item)"
       >
-        <p class="schedule-item-title">{{ item.title }}</p>
+        <div class="schedule-item-left">
+          <p class="schedule-item-title">{{ item.title }}</p>
+          <div class="schedule-item-tags" v-if="item.tags">
+            <span v-for="tag in item.tags" :key="tag" class="schedule-tag">{{ tag }}</span>
+          </div>
+        </div>
         <p class="schedule-item-date">{{ item.date }}</p>
       </div>
     </section>
+
+    <!-- ===== Detail Modal ===== -->
+    <ModalDialog
+      :visible="showModal"
+      :title="selectedItem?.title || ''"
+      :date="selectedItem?.date || ''"
+      @close="closeDetail"
+    >
+      <template v-if="selectedItem">
+        <p class="modal-description">{{ selectedItem.description }}</p>
+        <div class="modal-tags" v-if="selectedItem.tags">
+          <span v-for="tag in selectedItem.tags" :key="tag" class="modal-tag">{{ tag }}</span>
+        </div>
+        <button class="modal-action-btn" @click="closeDetail">关闭</button>
+      </template>
+    </ModalDialog>
   </div>
 </template>
 
@@ -419,6 +493,26 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #e5e5e5;
   padding: 0 0.75rem 2.25rem;
   margin-bottom: 2.25rem;
+  cursor: pointer;
+  transition: border-color 0.3s, transform 0.3s;
+  user-select: none;
+}
+
+.schedule-item:hover {
+  border-bottom-color: #bbb;
+  transform: translateX(4px);
+}
+
+.schedule-item:focus-visible {
+  outline: 2px solid #131313;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.schedule-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 .schedule-item-title {
@@ -427,6 +521,11 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: #131313;
   margin: 0;
+  transition: color 0.3s;
+}
+
+.schedule-item:hover .schedule-item-title {
+  color: #555;
 }
 
 .schedule-item-date {
@@ -435,6 +534,79 @@ onBeforeUnmount(() => {
   color: #999;
   margin: 0;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Tags inside schedule card */
+.schedule-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.schedule-tag {
+  font-family: 'Manrope', 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #777;
+  background: #f3f3f3;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+}
+
+/* ===== Modal Content ===== */
+.modal-description {
+  font-family: 'Manrope', 'Inter', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: #444;
+  margin: 0 0 1.25rem;
+}
+
+.modal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.modal-tag {
+  font-family: 'Manrope', 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  background: #f3f3f3;
+  border: 1px solid #e8e8e8;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+}
+
+.modal-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Manrope', 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  background: #131313;
+  border: none;
+  border-radius: 0.6rem;
+  padding: 0.65rem 1.5rem;
+  cursor: pointer;
+  transition: background 0.25s, transform 0.2s;
+}
+
+.modal-action-btn:hover {
+  background: #333;
+}
+
+.modal-action-btn:active {
+  transform: scale(0.97);
 }
 
 @media (max-width: 768px) {
@@ -464,6 +636,22 @@ onBeforeUnmount(() => {
   .schedule-heading {
     font-size: 1.5rem;
     margin-bottom: 3rem;
+  }
+
+  .schedule-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0 0.5rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .schedule-item:hover {
+    transform: translateX(2px);
+  }
+
+  .schedule-item-title {
+    font-size: 1.2rem;
   }
 }
 </style>
