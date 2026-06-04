@@ -8,30 +8,61 @@ gsap.registerPlugin(ScrollTrigger)
 const sectionRef = ref(null)
 let ctx = null
 
+/**
+ * 5 cards evenly distributed along the SVG path (viewBox 1278×2319).
+ *   section top%  ≈ -10 + (svgY / 2319) * 73
+ *   section left% ≈   5 + (svgX / 1278) * 90
+ * Each card is centered on the path point via transform: translate(-50%, -50%).
+ */
+const milestones = [
+  { id: 2, img: '/blogPicture/p2.jpg', top: '26%', left: '72%', label: 'THE JOURNEY BEGINS',     labelSide: 'left' },
+  { id: 3, img: '/blogPicture/p3.jpg', top: '80%', left: '34%', label: 'DEEP DIVE INTO CODE',    labelSide: 'right' },
+  { id: 4, img: '/blogPicture/p4.jpg', top: '45%', left: '16%', label: 'BUILDING THE FUTURE',    labelSide: 'right' },
+  { id: 5, img: '/blogPicture/p1.jpg', top: '63%', left: '78%', label: 'INFINITE POSSIBILITIES', labelSide: 'left' },
+]
+
 onMounted(() => {
   if (!sectionRef.value) return
 
   ctx = gsap.context(() => {
+    // ===== SVG Path draw-on-scroll =====
     const path = sectionRef.value.querySelector('.scroll-svg-path')
-    if (!path) return
+    if (path) {
+      const pathLength = path.getTotalLength()
+      gsap.set(path, {
+        strokeDasharray: pathLength,
+        strokeDashoffset: pathLength * 0.5,
+      })
+      gsap.to(path, {
+        strokeDashoffset: 0,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: sectionRef.value,
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 1,
+        },
+      })
+    }
 
-    const pathLength = path.getTotalLength()
+    // ===== Card + label reveal timeline =====
+    const cards = sectionRef.value.querySelectorAll('.milestone-card')
+    cards.forEach((card) => {
+      const label = card.querySelector('.card-label')
 
-    // Start at 50% drawn, scrub to 100% as user scrolls
-    gsap.set(path, {
-      strokeDasharray: pathLength,
-      strokeDashoffset: pathLength * 0.5,
-    })
+      gsap.set(card, { opacity: 0, force3D: true })
+      gsap.set(label, { scaleX: 0, opacity: 0, y: '-50%', force3D: true })
 
-    gsap.to(path, {
-      strokeDashoffset: 0,
-      ease: 'none',
-      scrollTrigger: {
-        trigger: sectionRef.value,
-        start: 'top top',
-        end: 'bottom bottom',
-        scrub: 1,
-      },
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: card,
+          start: 'center center+=5%',
+          toggleActions: 'play none none reverse',
+        },
+      })
+
+      tl.to(card, { opacity: 1, duration: 0.35, ease: 'power2.out' })
+        .to(label, { scaleX: 1, opacity: 1, y: '-50%', duration: 0.5, ease: 'back.out(2.5)' }, '-=0.15')
     })
   }, sectionRef.value)
 })
@@ -44,14 +75,15 @@ onBeforeUnmount(() => {
 <template>
   <div class="study-experience-page">
     <section ref="sectionRef" class="scroll-section">
-      <!-- ===== Hero Title Area ===== -->
+
+      <!-- ===== Hero Title ===== -->
       <div class="hero-area">
         <h1 class="hero-title">
           MY STUDY <br /> EXPERIENCE
         </h1>
-        <p class="hero-sub">Scroll down to see the effect</p>
+        <p class="hero-sub">Scroll down to trace the journey</p>
 
-        <!-- SVG Path overlay -->
+        <!-- SVG Path -->
         <svg
           width="1278"
           height="2319"
@@ -71,7 +103,19 @@ onBeforeUnmount(() => {
         </svg>
       </div>
 
-      <!-- ===== Bottom Dark Section ===== -->
+      <!-- ===== Image Cards centered on the path ===== -->
+      <div
+        v-for="m in milestones"
+        :key="m.id"
+        class="milestone-card"
+        :class="`label-${m.labelSide}`"
+        :style="{ top: m.top, left: m.left }"
+      >
+        <span class="card-label" :class="`pop-${m.labelSide}`">{{ m.label }}</span>
+        <img :src="m.img" class="card-img" loading="lazy" />
+      </div>
+
+      <!-- ===== Bottom Brand ===== -->
       <div class="bottom-section">
         <h1 class="bottom-brand">MMAOJUN.COM</h1>
       </div>
@@ -88,7 +132,7 @@ onBeforeUnmount(() => {
 }
 
 /* ================================================================
-   Scroll Section (350vh = long scroll canvas)
+   Scroll Section
    ================================================================ */
 .scroll-section {
   position: relative;
@@ -101,7 +145,7 @@ onBeforeUnmount(() => {
 }
 
 /* ================================================================
-   Hero Area (stays at top)
+   Hero Area
    ================================================================ */
 .hero-area {
   position: relative;
@@ -157,7 +201,77 @@ onBeforeUnmount(() => {
 }
 
 /* ================================================================
-   Bottom Dark Section
+   Image Cards — centered on path via translate(-50%, -50%)
+   ================================================================ */
+.milestone-card {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+/* label on the left, image on the right */
+.milestone-card.label-left .card-label {
+  right: 100%;
+}
+
+/* label on the right, image on the left */
+.milestone-card.label-right .card-label {
+  left: 100%;
+}
+
+.card-img {
+  width: 520px;
+  max-width: 50vw;
+  height: auto;
+  display: block;
+  box-shadow:
+    0 8px 32px rgba(31, 58, 75, 0.14),
+    0 2px 8px rgba(31, 58, 75, 0.06);
+  transition: box-shadow 0.35s ease;
+}
+
+.milestone-card:hover .card-img {
+  box-shadow:
+    0 16px 48px rgba(31, 58, 75, 0.22),
+    0 4px 12px rgba(31, 58, 75, 0.1);
+}
+
+/* ================================================================
+   Card Label — pops outward from the card edge
+   ================================================================ */
+.card-label {
+  position: absolute;
+  top: 50%;
+  width: 520px;
+  max-width: 50vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Plus Jakarta Sans', 'Manrope', sans-serif;
+  font-size: clamp(2.2rem, 5.5vw, 3.8rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1F3A4B;
+  background: none;
+  padding: 20px;
+  text-align: center;
+  pointer-events: none;
+  line-height: 1.2;
+}
+
+/* pop-right: expands from left edge → goes right */
+.card-label.pop-right {
+  transform-origin: left center;
+}
+
+/* pop-left: expands from right edge → goes left */
+.card-label.pop-left {
+  transform-origin: right center;
+}
+
+/* ================================================================
+   Bottom Brand
    ================================================================ */
 .bottom-section {
   position: absolute;
@@ -167,7 +281,7 @@ onBeforeUnmount(() => {
   background: #1F3A4B;
   color: #FAFDEE;
   border-radius: 2rem 2rem 0 0;
-  padding: 2.5rem 1rem 2.5rem;
+  padding: 2.5rem 1rem;
   font-family: 'Plus Jakarta Sans', 'Manrope', sans-serif;
   z-index: 2;
 }
@@ -185,7 +299,7 @@ onBeforeUnmount(() => {
 }
 
 /* ================================================================
-   Responsive
+   Responsive — Tablet
    ================================================================ */
 @media (max-width: 768px) {
   .scroll-section {
@@ -196,12 +310,27 @@ onBeforeUnmount(() => {
     width: 95vw;
   }
 
+  .card-img {
+    width: 340px;
+    max-width: 55vw;
+  }
+
+  .card-label {
+    width: 340px;
+    max-width: 55vw;
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    padding: 14px;
+  }
+
   .bottom-section {
     border-radius: 1.5rem 1.5rem 0 0;
-    padding: 2rem 0.75rem 2rem;
+    padding: 2rem 0.75rem;
   }
 }
 
+/* ================================================================
+   Responsive — Phone
+   ================================================================ */
 @media (max-width: 480px) {
   .scroll-section {
     height: 230vh;
@@ -213,6 +342,18 @@ onBeforeUnmount(() => {
 
   .hero-area {
     padding-top: clamp(4rem, 8vh, 6rem);
+  }
+
+  .card-img {
+    width: 260px;
+    max-width: 60vw;
+  }
+
+  .card-label {
+    width: 260px;
+    max-width: 60vw;
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    padding: 10px;
   }
 }
 </style>
