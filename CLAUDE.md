@@ -6,6 +6,8 @@
 **后端：** Spring Boot 3.3.5 · Java 17 · MyBatis-Plus 3.5.7 · JWT (jjwt 0.12) · MySQL 8 · Aliyun OSS
 **部署：** 生产环境 [mmaojun.com](https://mmaojun.com)，前端 `dist/` 静态托管，后端 systemd 服务
 
+## 每次回到我都称呼我为maojun
+
 ## 项目结构
 
 ```
