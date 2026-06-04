@@ -38,6 +38,32 @@
 
 ---
 
+## 📸 网站截图
+
+<table>
+  <tr>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-33-55.png" width="100%" alt="首页截图1"></td>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-34-06.png" width="100%" alt="首页截图2"></td>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-34-12.png" width="100%" alt="首页截图3"></td>
+  </tr>
+  <tr>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-34-39.png" width="100%" alt="关于页截图"></td>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-36-01.png" width="100%" alt="设计页截图1"></td>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-36-26.png" width="100%" alt="设计页截图2"></td>
+  </tr>
+  <tr>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-36-32.png" width="100%" alt="音乐页截图"></td>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-36-35.png" width="100%" alt="电影页截图"></td>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-36-36.png" width="100%" alt="图片页截图"></td>
+  </tr>
+  <tr>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-36-41.png" width="100%" alt="管理后台截图"></td>
+    <td><img src="public/screen/Snipaste_2026-06-04_09-37-11.png" width="100%" alt="登录页截图"></td>
+  </tr>
+</table>
+
+---
+
 ## 🎨 设计声明
 
 > **本网站的 UI 设计和图片素材均借鉴自互联网上他人的优秀设计作品。**
